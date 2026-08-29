@@ -22,9 +22,6 @@ coverage
 .eslintcache
 .biome
 
-convex/_generated
-packages/backend/convex/_generated
-**/_generated
 
 .env
 .env.local

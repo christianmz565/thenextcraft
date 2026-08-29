@@ -10,10 +10,10 @@ This project is **strictly self-hosted** using Docker Compose. All development, 
   - PostgreSQL 16 database
   - MinIO object storage (S3 compatible)
 - **Environment**: All local dev variables are supplied by `.env.dev` (gitignored). Keep `docker-compose.yml` as reference only and use `docker-compose.dev.yml` for dev environment.
-- **Convex Tooling**:
-  - Do NOT run cloud Convex commands (such as `convex dev` targeting Convex Cloud or `convex env set`).
-  - Set all auth and site variables (`SITE_URL`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, etc.) directly in `.env.dev` / container env.
-  - Frontend connects via `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_SELF_HOSTED_URL`, and `CONVEX_SELF_HOSTED_ADMIN_KEY`.
+ - **Convex Tooling**:
+   - Do NOT run cloud Convex commands targeting Convex Cloud (`convex dev --cloud` etc).
+   - Self-hosted Convex backend stores function environment variables in its deployment store. Set `SITE_URL`, `AUTH_GOOGLE_ID`, and `AUTH_GOOGLE_SECRET` via `bun node_modules/.bin/convex env set <KEY> <VALUE> --url http://127.0.0.1:3210 --admin-key <admin-key>` (container OS environment variables are not injected into V8 isolates).
+   - Frontend connects via `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_SELF_HOSTED_URL`, and `CONVEX_SELF_HOSTED_ADMIN_KEY`.
 - **Package Manager**: Use `bun` exclusively (`bun install`, `bun run ...`). Never use `npm`.
 
 ---

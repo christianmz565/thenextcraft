@@ -5,8 +5,6 @@ build
 .turbo
 *.tsbuildinfo
 
-convex/_generated
-packages/backend/convex/_generated
 .env
 .env.dev
 .env.local
