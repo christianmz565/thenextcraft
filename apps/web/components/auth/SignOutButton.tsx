@@ -8,7 +8,7 @@ export function SignOutButton() {
   const { signOut } = useAuthActions();
   return (
     <Button variant="outline" onClick={() => void signOut()}>
-      Sign out
+      Cerrar sesión
     </Button>
   );
 }

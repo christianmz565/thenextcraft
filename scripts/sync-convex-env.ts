@@ -1,7 +1,17 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+
+function run(cmd, args, opts = {}) {
+  return spawnSync(cmd, args, {
+    encoding: "utf8",
+    env: opts.env ?? process.env,
+    cwd: opts.cwd,
+    input: opts.input,
+    stdio: opts.stdio ?? "pipe",
+  });
+}
 
 const rootDir = path.resolve(__dirname, "..");
 const envDevPath = path.join(rootDir, ".env.dev");
@@ -73,17 +83,34 @@ if (!jwtPrivateKey || !jwks) {
   }
 }
 
-let adminKey = resolveEnv("CONVEX_SELF_HOSTED_ADMIN_KEY");
+const webEnvLocalPath = path.join(rootDir, "apps/web/.env.local");
+const webEnvContent = fs.existsSync(webEnvLocalPath)
+  ? fs.readFileSync(webEnvLocalPath, "utf8")
+  : "";
+
+let adminKey =
+  resolveEnv("CONVEX_SELF_HOSTED_ADMIN_KEY") ||
+  getEnvVar(webEnvContent, "CONVEX_SELF_HOSTED_ADMIN_KEY");
 
 if (!adminKey) {
   try {
-    adminKey = execSync(
-      "docker compose --env-file .env.dev -f docker-compose.dev.yml exec -T backend ./generate_admin_key.sh",
+    const r = run(
+      "docker",
+      [
+        "compose",
+        "--env-file",
+        ".env.dev",
+        "-f",
+        "docker-compose.dev.yml",
+        "exec",
+        "-T",
+        "backend",
+        "./generate_admin_key.sh",
+      ],
       { cwd: rootDir },
-    )
-      .toString()
-      .trim();
-  } catch (err: unknown) {
+    );
+    adminKey = (r.stdout ?? "").toString().trim();
+  } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.log("Docker compose admin key generation not available:", message);
   }
@@ -96,9 +123,18 @@ if (!adminKey) {
   process.exit(1);
 }
 
+if (envDevContent.includes("CONVEX_SELF_HOSTED_ADMIN_KEY=")) {
+  envDevContent = envDevContent.replace(
+    /^CONVEX_SELF_HOSTED_ADMIN_KEY=.*/m,
+    `CONVEX_SELF_HOSTED_ADMIN_KEY="${adminKey}"`,
+  );
+} else {
+  envDevContent += `\nCONVEX_SELF_HOSTED_ADMIN_KEY="${adminKey}"\n`;
+}
+fs.writeFileSync(envDevPath, envDevContent);
+
 console.log(`Using Convex Admin Key: ${adminKey.slice(0, 8)}...`);
 
-const webEnvLocalPath = path.join(rootDir, "apps/web/.env.local");
 if (fs.existsSync(webEnvLocalPath)) {
   let webEnvContent = fs.readFileSync(webEnvLocalPath, "utf8");
   if (webEnvContent.includes("CONVEX_SELF_HOSTED_ADMIN_KEY=")) {
@@ -115,6 +151,16 @@ if (fs.existsSync(webEnvLocalPath)) {
 const googleClientId = resolveEnv("AUTH_GOOGLE_ID") || resolveEnv("GOOGLE_CLIENT");
 const googleClientSecret = resolveEnv("AUTH_GOOGLE_SECRET") || resolveEnv("GOOGLE_SECRET");
 const siteUrl = resolveEnv("SITE_URL", "http://localhost:3000");
+if (!googleClientId || !googleClientSecret) {
+  console.error(
+    "Missing required AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET (or GOOGLE_CLIENT/GOOGLE_SECRET)",
+  );
+  process.exit(1);
+}
+if (!jwtPrivateKey || !jwks) {
+  console.error("Missing required JWT_PRIVATE_KEY / JWKS");
+  process.exit(1);
+}
 const convexSiteUrl = resolveEnv("CONVEX_SITE_URL");
 
 async function waitForBackend(url: string, retries = 30, delayMs = 2000): Promise<boolean> {
@@ -157,15 +203,18 @@ if (!fs.existsSync(convexBin)) {
 
 console.log("Deploying Convex functions to backend...");
 try {
-  execSync(`bun "${convexBin}" deploy --url "${convexUrl}" --admin-key "${adminKey}"`, {
-    cwd: backendDir,
-    env: {
-      ...process.env,
-      CONVEX_SELF_HOSTED_URL: convexUrl,
-      CONVEX_SELF_HOSTED_ADMIN_KEY: adminKey,
-    },
-    stdio: "inherit",
-  });
+  {
+    const r = run("bun", [convexBin, "deploy", "--url", convexUrl, "--admin-key", adminKey], {
+      cwd: backendDir,
+      env: {
+        ...process.env,
+        CONVEX_SELF_HOSTED_URL: convexUrl,
+        CONVEX_SELF_HOSTED_ADMIN_KEY: adminKey,
+      },
+      stdio: "inherit",
+    });
+    if (r.status !== 0) throw new Error(`deploy failed ${r.status} ${r.stderr}`);
+  }
   console.log("Convex functions successfully deployed!");
 } catch (err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
@@ -176,21 +225,32 @@ try {
 console.log("Syncing environment variables to self-hosted Convex backend...");
 
 function setConvexEnv(key: string, value: string) {
-  if (!value) return;
+  if (!value) {
+    console.error(`Missing required env ${key} — aborting`);
+    process.exit(1);
+  }
   try {
-    execSync(`bun "${convexBin}" env set ${key} --url "${convexUrl}" --admin-key "${adminKey}"`, {
-      cwd: backendDir,
-      input: value,
-      env: {
-        ...process.env,
-        CONVEX_SELF_HOSTED_URL: convexUrl,
-        CONVEX_SELF_HOSTED_ADMIN_KEY: adminKey,
-      },
-      stdio: ["pipe", "inherit", "inherit"],
-    });
+    {
+      const r = run(
+        "bun",
+        [convexBin, "env", "set", key, "--url", convexUrl, "--admin-key", adminKey],
+        {
+          cwd: backendDir,
+          input: value,
+          env: {
+            ...process.env,
+            CONVEX_SELF_HOSTED_URL: convexUrl,
+            CONVEX_SELF_HOSTED_ADMIN_KEY: adminKey,
+          },
+          stdio: "inherit",
+        },
+      );
+      if (r.status !== 0) throw new Error(`env set ${key} failed ${r.status}`);
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Failed to set ${key}:`, message);
+    process.exit(1);
   }
 }
 
