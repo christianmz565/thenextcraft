@@ -59,11 +59,8 @@ function EditorSurface() {
   return (
     <>
       <header className="z-30 flex min-h-16 items-center border-b bg-background">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center border-r lg:w-72 lg:justify-start lg:px-5">
-          <BrandMark href="/app" compact className="lg:hidden" />
-          <div className="hidden lg:block">
-            <BrandMark href="/app" />
-          </div>
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center border-r lg:w-64 lg:justify-start lg:px-5">
+          <BrandMark href="/app" />
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 md:px-4">
           <ol className="hidden min-w-0 items-center gap-3 font-mono text-[10px] uppercase tracking-wider md:flex">
