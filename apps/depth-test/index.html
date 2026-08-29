@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Depth Anything V2 — prueba</title>
+    <style>
+      body { max-width: 760px; margin: 40px auto; padding: 0 20px; font: 16px system-ui, sans-serif; }
+      label { display: block; margin: 16px 0 6px; font-weight: 600; }
+      button { margin: 12px 8px 12px 0; padding: 9px 14px; cursor: pointer; }
+      img { max-width: 100%; max-height: 360px; margin: 8px 0 20px; object-fit: contain; background: #eee; }
+      #status { white-space: pre-wrap; padding: 12px; background: #f3f3f3; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>Prueba de estimación de profundidad</h1>
+    <p>Primero inicia sesión. Después selecciona el producto y el escenario.</p>
+    <div id="fallback">
+      <button id="fallback-login" type="button" onclick="window.location.href='http://localhost:3000/signin'">Abrir login de la app</button>
+      <p id="fallback-help">Si este mensaje no cambia, abre esta carpeta mediante un servidor HTTP, no con doble clic.</p>
+    </div>
+    <div id="app"></div>
+    <script>
+      window.addEventListener("error", function () {
+        document.getElementById("fallback-help").textContent =
+          "No se pudo cargar app.js. Usa: python3 -m http.server 3001 --directory apps/depth-test";
+      });
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
