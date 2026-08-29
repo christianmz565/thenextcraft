@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "moduleResolution": "bundler",
-    "strict": true,
+    "strict": true
   },
   "include": ["**/*.ts", "convex/**/*.ts"],
   "exclude": ["node_modules", "convex/_generated/**"]
