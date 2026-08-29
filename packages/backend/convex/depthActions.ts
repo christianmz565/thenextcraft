@@ -1,6 +1,7 @@
 "use node";
 
 import { internal } from "@backend/convex/_generated/api";
+import type { Id } from "@backend/convex/_generated/dataModel";
 import { action } from "@backend/convex/_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
@@ -8,6 +9,16 @@ import Replicate from "replicate";
 
 const modelVersion =
   "chenxwh/depth-anything-v2:b239ea33cff32bb7abb5db39ffe9a09c14cbc2894331d1ef66fe096eed88ebd4";
+
+// Annotated explicitly: the action reaches its own module through `internal`,
+// so TypeScript cannot infer this return type without circling back (TS7022/TS7023).
+type GenerateDepthMapResult = {
+  id: Id<"depthMaps">;
+  status: "completed";
+  modelVersion: string;
+  depthStorageId: Id<"_storage">;
+  depthUrl: string | null;
+};
 
 function getOutputUrl(value: unknown): string | null {
   if (typeof value === "string") return value;
@@ -27,14 +38,14 @@ export const generateDepthMap = action({
     objectStorageId: v.id("_storage"),
     sceneStorageId: v.id("_storage"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<GenerateDepthMapResult> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const apiKey = process.env.REPLICATE_API_KEY;
     if (!apiKey) throw new Error("Missing REPLICATE_API_KEY");
 
-    const jobId = await ctx.runMutation(internal.depth.create, {
+    const jobId: Id<"depthMaps"> = await ctx.runMutation(internal.depth.create, {
       userId,
       ...args,
     });
