@@ -5,15 +5,19 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  type AlphaBox,
   type CameraParams,
   type Cube,
+  computeAlphaBBox,
   cubeVertices,
   type DepthField,
   depthToSize,
   deriveCamera,
   estimateVanishingPoint,
   type Point,
+  type Rotation,
   readDepthField,
+  rotateVec3,
   SCALE_MAX,
   SCALE_MIN,
   sampleDepth,
@@ -29,6 +33,8 @@ type DepthStageProps = {
   colorDepthUrl: string | null;
   /** When set, the cube is replaced by this product cutout. */
   overlayUrl?: string | null;
+  /** Free 3D rotation applied only to the product sheet, never to the cube. */
+  rotation?: Rotation;
   /** Reports the current placement so the parent can derive camera params and export. */
   onPlacementChange?: (placement: Placement | null) => void;
   exportRequestId?: number;
@@ -47,6 +53,7 @@ export function DepthStage({
   depthUrl,
   colorDepthUrl,
   overlayUrl = null,
+  rotation = { x: 0, y: 0, z: 0 },
   onPlacementChange,
   exportRequestId,
   onExported,
@@ -67,6 +74,7 @@ export function DepthStage({
   const dragRef = useRef<"cube" | "vp" | null>(null);
   const scaleId = useId();
   const [overlayImage, setOverlayImage] = useState<HTMLImageElement | null>(null);
+  const [overlayBox, setOverlayBox] = useState<AlphaBox | null>(null);
 
   // Load scene, depth map and optional colored map before enabling interaction.
   useEffect(() => {
@@ -126,20 +134,41 @@ export function DepthStage({
       ? toDisplayPoint(vanishingPoint, field, width, height)
       : { x: width / 2, y: height / 2 };
 
-    // With a generated perspective the product replaces the cube at the same spot.
+    // With a generated perspective the product replaces the cube, drawn as a flat sheet
+    // with free 3D rotation. Orthographic projection turns the rotated rectangle into a
+    // parallelogram, which an affine transform maps exactly without WebGL.
     const overlay = overlayImage;
-    if (cube && overlay) {
+    const box = overlayBox;
+    if (cube && overlay && box) {
       const size = cube.size * scale;
-      const aspect = overlay.naturalWidth / (overlay.naturalHeight || 1);
-      const drawHeight = size;
-      const drawWidth = size * aspect;
-      context.drawImage(
-        overlay,
-        cube.x - drawWidth / 2,
-        cube.y - drawHeight,
-        drawWidth,
-        drawHeight,
+      const halfWidth = (size * (box.w / (box.h || 1))) / 2;
+      const halfHeight = size / 2;
+      const center = { x: cube.x, y: cube.y - halfHeight };
+      const spin = (x: number, y: number) =>
+        rotateVec3({ x, y, z: 0 }, rotation.x, rotation.y, rotation.z);
+
+      const toScreen = (point: { x: number; y: number }) => ({
+        x: center.x + point.x,
+        y: center.y - point.y,
+      });
+      const p00 = toScreen(spin(-halfWidth, halfHeight));
+      const p10 = toScreen(spin(halfWidth, halfHeight));
+      const p01 = toScreen(spin(-halfWidth, -halfHeight));
+      const normal = rotateVec3({ x: 0, y: 0, z: 1 }, rotation.x, rotation.y, rotation.z);
+
+      context.save();
+      // Seeing the back of the sheet: there is no real reverse texture, so dim it.
+      context.globalAlpha = normal.z >= 0 ? 1 : 0.35;
+      context.setTransform(
+        (p10.x - p00.x) / box.w,
+        (p10.y - p00.y) / box.w,
+        (p01.x - p00.x) / box.h,
+        (p01.y - p00.y) / box.h,
+        p00.x,
+        p00.y,
       );
+      context.drawImage(overlay, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+      context.restore();
     } else if (cube) {
       const vertices = cubeVertices(cube, vpDisplay, scale);
       const foreground = readCssColor(canvas, "--foreground");
@@ -226,7 +255,18 @@ export function DepthStage({
       context.stroke();
       context.restore();
     }
-  }, [cube, overlayImage, scale, showDepth, showVanishingPoint, vanishingPoint]);
+  }, [
+    cube,
+    overlayBox,
+    overlayImage,
+    rotation.x,
+    rotation.y,
+    rotation.z,
+    scale,
+    showDepth,
+    showVanishingPoint,
+    vanishingPoint,
+  ]);
 
   // Fit the canvas to its container while preserving the scene aspect ratio.
   useEffect(() => {
@@ -263,14 +303,21 @@ export function DepthStage({
     let cancelled = false;
     if (!overlayUrl) {
       setOverlayImage(null);
+      setOverlayBox(null);
       return;
     }
     loadImage(overlayUrl)
       .then((image) => {
-        if (!cancelled) setOverlayImage(image);
+        if (cancelled) return;
+        setOverlayImage(image);
+        // Trim the transparent padding so the visible content fills the derived size.
+        setOverlayBox(computeAlphaBBox(image));
       })
       .catch(() => {
-        if (!cancelled) setOverlayImage(null);
+        if (!cancelled) {
+          setOverlayImage(null);
+          setOverlayBox(null);
+        }
       });
     return () => {
       cancelled = true;

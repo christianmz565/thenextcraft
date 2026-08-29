@@ -212,3 +212,107 @@ export function deriveCamera(cube: Cube, vanishingPoint: Point): CameraParams {
 
   return { rotateDegrees, verticalTilt };
 }
+
+export const ROT_DRAG_SENSITIVITY = 0.012;
+
+export type Rotation = { x: number; y: number; z: number };
+export type Vec3 = { x: number; y: number; z: number };
+
+export function radToDeg(radians: number) {
+  return (radians * 180) / Math.PI;
+}
+
+export function degToRad(degrees: number) {
+  return (degrees * Math.PI) / 180;
+}
+
+/** Keeps angles in (-PI, PI] so free dragging never pushes the sliders out of range. */
+export function wrapAngle(angle: number) {
+  const twoPi = Math.PI * 2;
+  return ((((angle + Math.PI) % twoPi) + twoPi) % twoPi) - Math.PI;
+}
+
+/**
+ * Rotates a 3D vector by rx, ry, rz in Rz * Ry * Rx order.
+ * The X sign is intentionally flipped so dragging upward tilts the sheet upward.
+ */
+export function rotateVec3(vector: Vec3, rx: number, ry: number, rz: number): Vec3 {
+  const { x, y, z } = vector;
+
+  const cx = Math.cos(rx);
+  const sx = Math.sin(rx);
+  const y1 = y * cx + z * sx;
+  const z1 = -y * sx + z * cx;
+
+  const cy = Math.cos(ry);
+  const sy = Math.sin(ry);
+  const x2 = x * cy + z1 * sy;
+  const z2 = -x * sy + z1 * cy;
+
+  const cz = Math.cos(rz);
+  const sz = Math.sin(rz);
+  return { x: x2 * cz - y1 * sz, y: x2 * sz + y1 * cz, z: z2 };
+}
+
+/** The model only accepts three discrete tilts, derived from the magnitude of rotX. */
+export function verticalTiltFromRotX(rx: number) {
+  const degrees = radToDeg(rx);
+  if (degrees > VERTICAL_TILT_THRESHOLD_DEG) return 1;
+  if (degrees < -VERTICAL_TILT_THRESHOLD_DEG) return -1;
+  return 0;
+}
+
+/** Camera params from the manual product rotation: rotY is the turn, rotX the tilt. */
+export function cameraFromRotation(rotation: Rotation): CameraParams {
+  return {
+    rotateDegrees: Math.max(-90, Math.min(90, Math.round(radToDeg(rotation.y)))),
+    verticalTilt: verticalTiltFromRotX(rotation.x),
+  };
+}
+
+export type AlphaBox = { x: number; y: number; w: number; h: number };
+
+const ALPHA_BBOX_THRESHOLD = 8;
+
+/**
+ * Bounding box of the non-transparent pixels, so the visible content fills the derived
+ * size instead of shrinking because of the PNG's empty padding.
+ */
+export function computeAlphaBBox(image: HTMLImageElement): AlphaBox {
+  const w = image.naturalWidth;
+  const h = image.naturalHeight;
+  const fallback = { x: 0, y: 0, w, h };
+  if (!w || !h) return fallback;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return fallback;
+
+  context.drawImage(image, 0, 0);
+  let data: Uint8ClampedArray;
+  try {
+    data = context.getImageData(0, 0, w, h).data;
+  } catch {
+    return fallback;
+  }
+
+  let minX = w;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      if (data[(y * w + x) * 4 + 3] > ALPHA_BBOX_THRESHOLD) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX) return fallback;
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
