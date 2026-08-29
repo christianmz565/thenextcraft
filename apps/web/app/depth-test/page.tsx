@@ -2,7 +2,7 @@
 
 import { api } from "backend/convex/_generated/api.js";
 import type { Id } from "backend/convex/_generated/dataModel.js";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { Authenticated, AuthLoading, useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 
 import { SignOutButton } from "@/components/auth/SignOutButton";
@@ -74,32 +74,26 @@ function Upload({
   );
 }
 
-export default function DepthTestPage() {
+function DepthTester() {
   const [objectStorageId, setObjectStorageId] = useState<StorageId | null>(null);
   const [sceneStorageId, setSceneStorageId] = useState<StorageId | null>(null);
-  const [result, setResult] = useState<unknown>(null);
+  const [jobId, setJobId] = useState<Id<"depthMaps"> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  const generateDepthMap = useAction(api.depthActions.generateDepthMap);
+  const enqueue = useMutation(api.depth.enqueue);
+  // Polling: the query re-runs on its own as the scheduled action patches the row.
+  const job = useQuery(api.depth.get, jobId ? { id: jobId } : "skip");
   const jobs = useQuery(api.depth.list, {});
 
-  const depthUrl =
-    result && typeof result === "object" && "depthUrl" in result
-      ? ((result as { depthUrl: string | null }).depthUrl ?? null)
-      : null;
+  const running = job?.status === "pending" || job?.status === "processing";
 
   async function processScene() {
     if (!objectStorageId || !sceneStorageId) return;
-    setBusy(true);
-    setResult(null);
     setError(null);
     try {
-      setResult(await generateDepthMap({ objectStorageId, sceneStorageId }));
+      setJobId(await enqueue({ objectStorageId, sceneStorageId }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Depth estimation falló");
-    } finally {
-      setBusy(false);
+      setError(e instanceof Error ? e.message : "No se pudo encolar el trabajo");
     }
   }
 
@@ -116,24 +110,47 @@ export default function DepthTestPage() {
       <Button
         type="button"
         className="w-fit"
-        disabled={busy || !objectStorageId || !sceneStorageId}
+        disabled={Boolean(running) || !objectStorageId || !sceneStorageId}
         onClick={() => void processScene()}
       >
-        {busy ? "Procesando…" : "Generar mapa de profundidad"}
+        {running ? "Procesando…" : "Generar mapa de profundidad"}
       </Button>
 
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-      {result ? (
-        <div className="flex flex-col gap-2">
-          <h2 className="font-medium">Resultado</h2>
+      {job ? (
+        <div className="flex flex-col gap-3">
+          <h2 className="font-medium">
+            Estado: {job.status}
+            {job.error ? ` — ${job.error}` : ""}
+          </h2>
           <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
-            {JSON.stringify(result, null, 2)}
+            {JSON.stringify(job, null, 2)}
           </pre>
-          {depthUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={depthUrl} alt="Mapa de profundidad" className="max-h-96 w-fit rounded-md" />
-          ) : null}
+          <div className="flex flex-wrap gap-4">
+            {(
+              [
+                ["Escenario", job.sceneUrl],
+                ["Producto", job.objectUrl],
+                ["Profundidad (grey)", job.depthUrl],
+                ["Profundidad (color)", job.colorDepthUrl],
+              ] as const
+            ).map(([label, url]) =>
+              url ? (
+                <figure key={label} className="flex flex-col gap-1">
+                  <figcaption className="text-muted-foreground text-xs">{label}</figcaption>
+                  {/* crossOrigin: el canvas lee el mapa grey con getImageData */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={label}
+                    crossOrigin="anonymous"
+                    className="max-h-64 rounded-md"
+                  />
+                </figure>
+              ) : null,
+            )}
+          </div>
         </div>
       ) : null}
 
@@ -141,5 +158,20 @@ export default function DepthTestPage() {
         {jobs ? `Trabajos registrados: ${jobs.length}` : "Cargando trabajos…"}
       </p>
     </div>
+  );
+}
+
+// Las queries de `depth` lanzan "Not authenticated" en vez de devolver null, así que
+// el componente solo se monta cuando el cliente ya tiene el token.
+export default function DepthTestPage() {
+  return (
+    <>
+      <AuthLoading>
+        <p className="p-6 text-muted-foreground text-sm">Comprobando sesión…</p>
+      </AuthLoading>
+      <Authenticated>
+        <DepthTester />
+      </Authenticated>
+    </>
   );
 }
