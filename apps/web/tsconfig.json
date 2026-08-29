@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@packages/*": ["../../packages/*"]
     }
   },
   "include": [
@@ -29,7 +30,7 @@
     "**/*.tsx",
     "**/*.mts",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "../../packages/backend/**/*.ts"
   ],
-  "exclude": ["node_modules"]
 }

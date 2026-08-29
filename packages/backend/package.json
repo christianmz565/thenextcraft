@@ -8,6 +8,8 @@
     "deploy": "convex deploy"
   },
   "dependencies": {
+    "@auth/core": "0.41.1",
+    "@convex-dev/auth": "0.0.95",
     "@t3-oss/env-core": "^0.13.11",
     "convex": "1.45.0",
     "zod": "^4.5.2"

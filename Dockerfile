@@ -2,6 +2,7 @@ ARG BUN_VERSION=1.3.13
 ARG NODE_ENV=production
 
 FROM oven/bun:${BUN_VERSION}-slim AS base
+ARG NODE_ENV=production
 WORKDIR /app
 ENV NODE_ENV=${NODE_ENV} \
     BUN_INSTALL_CACHE_DIR=/root/.bun/install/cache
@@ -22,8 +23,10 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,id=bun-install,sharing=lo
     bun install --frozen-lockfile --ignore-scripts
 
 FROM base AS builder
+ARG NEXT_PUBLIC_CONVEX_URL
+ENV NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL} \
+    SKIP_ENV_VALIDATION=1
 WORKDIR /app
-
 COPY --from=deps --link /app/node_modules ./node_modules
 COPY --from=deps --link /app/bun.lock ./bun.lock
 COPY --from=deps --link /app/package.json ./package.json
