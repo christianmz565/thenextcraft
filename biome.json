@@ -26,7 +26,23 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended"
+      "preset": "recommended",
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["./**", "../**"],
+                "message": "Relative imports are not allowed. Use path aliases (@web/*, @backend/*, @/*) instead."
+              }
+            ]
+          }
+        }
+      },
+      "performance": {
+        "noImgElement": "off"
+      }
     }
   },
   "javascript": {

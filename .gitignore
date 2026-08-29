@@ -8,6 +8,7 @@ build
 convex/_generated
 packages/backend/convex/_generated
 .env
+.env.dev
 .env.local
 .env.*.local
 

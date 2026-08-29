@@ -14,12 +14,17 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "lint:write": "biome lint --write .",
-    "convex:dev": "bun --filter backend convex dev",
-    "convex:codegen": "bun --filter backend convex codegen"
+    "convex:dev": "bun --env-file=.env.dev run --filter backend dev",
+    "convex:codegen": "bun --env-file=.env.dev run --filter backend codegen",
+    "convex:admin-key": "./scripts/generate-admin-key.sh",
+    "dev:web": "bun --env-file=.env.dev run --filter web dev",
+    "dev:backend": "bun --env-file=.env.dev run --filter backend dev",
+    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:web\""
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.11",
     "@types/node": "^26.4.0",
+    "concurrently": "^10.0.5",
     "typescript": "5.9.2"
   },
   "packageManager": "bun@1.3.13",

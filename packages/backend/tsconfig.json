@@ -3,8 +3,9 @@
   "compilerOptions": {
     "moduleResolution": "bundler",
     "types": ["node"],
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true
   },
-  "include": ["**/*.ts", "convex/**/*.ts"],
+  "include": ["convex/**/*.ts"],
   "exclude": ["node_modules", "convex/_generated/**"]
 }

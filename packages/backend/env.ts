@@ -1,1 +1,1 @@
-export * from "./convex/env";
+export * from "@backend/convex/env";

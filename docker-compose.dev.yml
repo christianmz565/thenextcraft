@@ -1,0 +1,124 @@
+# Dev self-hosted Convex stack with PostgreSQL & MinIO
+# Usage:
+#   docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
+#   docker compose --env-file .env.dev -f docker-compose.dev.yml exec backend ./generate_admin_key.sh
+
+services:
+  backend:
+    image: ghcr.io/get-convex/convex-backend:latest
+    container_name: thenextcraft-backend-dev
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    ports:
+      - "${CONVEX_PORT:-3210}:3210"
+      - "${SITE_PROXY_PORT:-3211}:3211"
+    volumes:
+      - data:/convex/data
+    environment:
+      # — Convex Auth —
+      - SITE_URL=${SITE_URL}
+      - AUTH_GOOGLE_ID=${GOOGLE_CLIENT}
+      - AUTH_GOOGLE_SECRET=${GOOGLE_SECRET}
+      # — Upstream Backend Config —
+      - CONVEX_CLOUD_ORIGIN=${CONVEX_CLOUD_ORIGIN}
+      - CONVEX_SITE_ORIGIN=${CONVEX_SITE_ORIGIN}
+      - DISABLE_METRICS_ENDPOINT=${DISABLE_METRICS_ENDPOINT:-true}
+      - DOCUMENT_RETENTION_DELAY=${DOCUMENT_RETENTION_DELAY:-172800}
+      - RUST_LOG=${RUST_LOG:-info}
+      # — PostgreSQL Storage —
+      - POSTGRES_URL=${POSTGRES_URL}
+      - DO_NOT_REQUIRE_SSL=${DO_NOT_REQUIRE_SSL}
+      # — MinIO / S3 Storage —
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_S3_FORCE_PATH_STYLE=${AWS_S3_FORCE_PATH_STYLE:-true}
+      - AWS_S3_DISABLE_SSE=${AWS_S3_DISABLE_SSE:-true}
+      - AWS_S3_DISABLE_CHECKSUMS=${AWS_S3_DISABLE_CHECKSUMS:-true}
+      - S3_STORAGE_EXPORTS_BUCKET=${S3_STORAGE_EXPORTS_BUCKET}
+      - S3_STORAGE_FILES_BUCKET=${S3_STORAGE_FILES_BUCKET}
+      - S3_STORAGE_MODULES_BUCKET=${S3_STORAGE_MODULES_BUCKET}
+      - S3_STORAGE_SEARCH_BUCKET=${S3_STORAGE_SEARCH_BUCKET}
+      - S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET=${S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3210/version"]
+      interval: 5s
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      create-buckets:
+        condition: service_completed_successfully
+
+  dashboard:
+    image: ghcr.io/get-convex/convex-dashboard:latest
+    container_name: thenextcraft-dashboard-dev
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    ports:
+      - "${DASHBOARD_PORT:-6791}:6791"
+    environment:
+      - NEXT_PUBLIC_DEPLOYMENT_URL=${NEXT_PUBLIC_DEPLOYMENT_URL}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: thenextcraft-postgres-dev
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: thenextcraft-minio-dev
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  create-buckets:
+    image: minio/mc:latest
+    container_name: thenextcraft-minio-init-dev
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc mb --ignore-existing myminio/${S3_STORAGE_FILES_BUCKET};
+      /usr/bin/mc mb --ignore-existing myminio/${S3_STORAGE_EXPORTS_BUCKET};
+      /usr/bin/mc mb --ignore-existing myminio/${S3_STORAGE_MODULES_BUCKET};
+      /usr/bin/mc mb --ignore-existing myminio/${S3_STORAGE_SEARCH_BUCKET};
+      /usr/bin/mc mb --ignore-existing myminio/${S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET};
+      exit 0;
+      "
+
+volumes:
+  data:
+  postgres-data:
+  minio-data:
