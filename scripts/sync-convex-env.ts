@@ -115,6 +115,7 @@ if (fs.existsSync(webEnvLocalPath)) {
 const googleClientId = resolveEnv("AUTH_GOOGLE_ID") || resolveEnv("GOOGLE_CLIENT");
 const googleClientSecret = resolveEnv("AUTH_GOOGLE_SECRET") || resolveEnv("GOOGLE_SECRET");
 const siteUrl = resolveEnv("SITE_URL", "http://localhost:3000");
+const convexSiteUrl = resolveEnv("CONVEX_SITE_URL");
 
 async function waitForBackend(url: string, retries = 30, delayMs = 2000): Promise<boolean> {
   const versionUrl = `${url.replace(/\/$/, "")}/version`;
@@ -196,6 +197,13 @@ function setConvexEnv(key: string, value: string) {
 setConvexEnv("AUTH_GOOGLE_ID", googleClientId);
 setConvexEnv("AUTH_GOOGLE_SECRET", googleClientSecret);
 setConvexEnv("SITE_URL", siteUrl);
+if (convexSiteUrl) {
+  try {
+    setConvexEnv("CONVEX_SITE_URL", convexSiteUrl);
+  } catch {
+    // CONVEX_SITE_URL is a built-in container env in self-hosted Convex
+  }
+}
 setConvexEnv("JWT_PRIVATE_KEY", jwtPrivateKey);
 setConvexEnv("JWKS", jwks);
 
