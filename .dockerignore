@@ -1,9 +1,7 @@
-# VCS
 .git
 .gitignore
 .github
 
-# Node / Bun
 node_modules
 npm-debug.log*
 bun-debug.log*
@@ -12,7 +10,6 @@ bun-debug.log*
 **/node_modules
 **/.bun
 
-# Build outputs
 dist
 build
 .next
@@ -25,12 +22,10 @@ coverage
 .eslintcache
 .biome
 
-# Convex generated
 convex/_generated
 packages/backend/convex/_generated
 **/_generated
 
-# Env & secrets
 .env
 .env.local
 .env.*.local
@@ -40,7 +35,6 @@ packages/backend/convex/_generated
 *.pem
 *.key
 
-# OS / editor
 .DS_Store
 Thumbs.db
 .idea
@@ -50,18 +44,15 @@ Thumbs.db
 *.swo
 *~
 
-# Nix / direnv
 .direnv
 flake.nix
 flake.lock
 .envrc
 
-# Docker / CI
 Dockerfile
 docker-compose*
 .dockerignore
 
-# Docs & misc
 README.md
 CONTRIBUTING.md
 docs

@@ -5,14 +5,12 @@ build
 .turbo
 *.tsbuildinfo
 
-# Convex
 convex/_generated
 packages/backend/convex/_generated
 .env
 .env.local
 .env.*.local
 
-# OS / editor
 .DS_Store
 Thumbs.db
 .idea

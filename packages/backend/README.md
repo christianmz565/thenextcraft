@@ -3,16 +3,11 @@
 Convex backend for the monorepo. Recommended workflow per https://docs.convex.dev/quickstart:
 
 ```bash
-# 1. From repo root — install all deps (workspaces)
 bun install
 
-# 2. Start Convex dev sync (authenticates via GitHub, creates deployment, watches convex/ )
 bun run --filter backend dev
-# or
 bunx --filter backend convex dev
-# equivalent to `npx convex dev` at the convex.json location
 
-# 3. One-off codegen (generates packages/backend/convex/_generated/)
 bun run --filter backend codegen
 ```
 
