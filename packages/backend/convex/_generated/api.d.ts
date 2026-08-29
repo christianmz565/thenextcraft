@@ -11,6 +11,8 @@
 import type * as angles from "../angles.js";
 import type * as anglesActions from "../anglesActions.js";
 import type * as auth from "../auth.js";
+import type * as cutouts from "../cutouts.js";
+import type * as cutoutsActions from "../cutoutsActions.js";
 import type * as depth from "../depth.js";
 import type * as depthActions from "../depthActions.js";
 import type * as env from "../env.js";
@@ -29,6 +31,8 @@ declare const fullApi: ApiFromModules<{
   angles: typeof angles;
   anglesActions: typeof anglesActions;
   auth: typeof auth;
+  cutouts: typeof cutouts;
+  cutoutsActions: typeof cutoutsActions;
   depth: typeof depth;
   depthActions: typeof depthActions;
   env: typeof env;

@@ -390,7 +390,87 @@ await depth.enqueue({ objectStorageId: job.resultStorageId, sceneStorageId });
 
 ---
 
-## 9. Correr todo
+## 9. Recorte de sujeto — texto detrás del objeto (`api.cutouts`)
+
+Para el efecto "text behind image" (fondo atrás, letras en el medio, objeto al
+frente) el frontend necesita el **sujeto de la foto recortado con canal alpha**.
+Este servicio lo produce con una sola llamada a `851-labs/background-remover`
+(la misma versión pineada que usa perspectivas).
+
+El texto NO pasa por el backend: se dibuja en canvas. Las capas son:
+
+```
+┌─────────────────────────┐
+│ 3. cutout (resultUrl)   │  ← el sujeto con alpha, tapa el texto
+│ 2. texto (canvas/DOM)   │
+│ 1. foto original        │  ← sourceUrl / la imagen ya subida
+└─────────────────────────┘
+```
+
+### `enqueue` — mutation
+
+```ts
+({
+  sourceStorageId: Id<"_storage">,
+  threshold?: number,       // [0..1], default del modelo: 0
+}) => Promise<Id<"subjectCutouts">>
+```
+
+Acepta cualquier imagen registrada con `registerUpload` (`scene` u `object` —
+para text-behind normalmente es la foto de escena). Mismo patrón asíncrono:
+devuelve el id al instante y el trabajo corre agendado.
+
+**Tiene caché**: mismo `sourceStorageId` + mismo `threshold` reutiliza un recorte
+ya completado sin llamar a Replicate. Repetir el efecto sobre la misma foto es
+gratis e instantáneo.
+
+### `get` / `list` / `remove`
+
+Iguales a los otros servicios. `HydratedSubjectCutout`:
+
+```ts
+type HydratedSubjectCutout = Doc<"subjectCutouts"> & {
+  sourceUrl: string | null;   // la foto original
+  resultUrl: string | null;   // PNG con alpha — null hasta "completed"
+};
+```
+
+### Flujo completo del efecto
+
+```ts
+// 1. la foto ya está subida y registrada (ver §3)
+const cutoutId = await cutoutsEnqueue({ sourceStorageId: sceneStorageId });
+
+// 2. polling reactivo
+const cutout = useQuery(api.cutouts.get, cutoutId ? { id: cutoutId } : "skip");
+
+// 3. al completarse, componer en canvas:
+//    drawImage(fotoOriginal) → fillText(...) → drawImage(cutoutPng)
+```
+
+Las dos imágenes se dibujan con `crossOrigin="anonymous"` si después vas a
+exportar el canvas (`toBlob`/`toDataURL` fallan con canvas tainted, igual que
+`getImageData` — ver §5).
+
+### Composición con lo demás
+
+El recorte se registra en `userFiles` como `kind: "object"`, así que también
+sirve como entrada de los otros servicios: generar un ángulo del sujeto
+(`angles.enqueue`) o usarlo como producto de una composición (`depth.enqueue`).
+
+### Cosas que muerden acá
+
+- La segmentación puede dejar **restos tenues** de borde (misma limitación que
+  en perspectivas). `threshold` ajusta el corte del alpha si el default recorta
+  de más o de menos.
+- El sujeto que el modelo elige es **el prominente de la foto** — no hay forma
+  de indicarle cuál. En fotos con varios sujetos el resultado puede sorprender.
+- "Guardar imagen" del editor es del cliente (`canvas.toBlob`); si además quieren
+  persistirla en la cuenta, se sube por el flujo normal de §3.
+
+---
+
+## 10. Correr todo
 
 ```bash
 docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
