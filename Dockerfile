@@ -62,6 +62,7 @@ COPY --from=builder --link /app/apps/web/.next/standalone ./
 COPY --from=builder --link /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --link /app/apps/web/public ./apps/web/public
 
+COPY --from=builder --link /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --link /app/packages ./packages
 COPY --from=builder --link /app/scripts ./scripts
 COPY --from=builder --link /app/node_modules ./node_modules
