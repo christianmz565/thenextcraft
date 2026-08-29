@@ -38,14 +38,17 @@ function ModelFallback() {
   );
 }
 
-type ModelViewerProps = { className?: string };
+type ModelViewerProps = { className?: string; paused?: boolean };
 
-export function ModelViewer({ className }: ModelViewerProps) {
+export function ModelViewer({ className, paused = false }: ModelViewerProps) {
+  const interactive = !paused;
+
   return (
     <div className={cn("relative", className)}>
       <ModelErrorBoundary fallback={<ModelFallback />}>
         <Canvas
           className="!touch-none"
+          style={{ pointerEvents: interactive ? "auto" : "none" }}
           camera={{ position: [3.2, 1.8, 4.2], fov: 38 }}
           dpr={[1, 2]}
           gl={{ antialias: true, alpha: true }}
@@ -56,9 +59,10 @@ export function ModelViewer({ className }: ModelViewerProps) {
             </Stage>
             <OrbitControls
               makeDefault
+              enabled={interactive}
               enablePan={false}
               enableZoom={false}
-              autoRotate
+              autoRotate={interactive}
               autoRotateSpeed={1.1}
               minPolarAngle={Math.PI / 3}
               maxPolarAngle={Math.PI / 1.8}
