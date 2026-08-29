@@ -75,7 +75,7 @@ export default function SignInPage() {
             <Button
               size="lg"
               className="mt-10 w-full justify-between"
-              render={<Link href="/dashboard" />}
+              render={<Link href="/app" />}
             >
               Abrir el estudio <ArrowRight aria-hidden="true" />
             </Button>

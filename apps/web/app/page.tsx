@@ -35,7 +35,7 @@ export default function HomePage() {
           <Button variant="ghost" render={<Link href="/signin" />}>
             Acceder
           </Button>
-          <Button render={<Link href="/dashboard" />}>
+          <Button render={<Link href="/app" />}>
             Abrir estudio <ArrowRight aria-hidden="true" />
           </Button>
         </nav>
@@ -59,7 +59,7 @@ export default function HomePage() {
               resultados con profundidad real.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
-              <Button size="lg" render={<Link href="/dashboard" />}>
+              <Button size="lg" render={<Link href="/app" />}>
                 Empezar composición <ArrowRight aria-hidden="true" />
               </Button>
               <Button size="lg" variant="outline" render={<Link href="#sistema" />}>

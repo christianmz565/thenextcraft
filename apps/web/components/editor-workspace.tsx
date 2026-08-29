@@ -1,15 +1,16 @@
 "use client";
 
 import {
-  ArrowLeft,
   Box,
   ChevronDown,
   Download,
   Eye,
   Image as ImageIcon,
+  ImageUp,
   Maximize2,
   Plus,
   Redo2,
+  RefreshCw,
   RotateCw,
   ScanLine,
   SlidersHorizontal,
@@ -20,9 +21,9 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 
+import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BrandMark } from "@/components/brand-mark";
 import { EditorScene } from "@/components/editor-scene";
 import { Button } from "@/components/ui/button";
@@ -31,42 +32,53 @@ import { cn } from "@/lib/utils";
 type Section = "background" | "product" | "text";
 type Preview = "scene" | "depth" | "overlay";
 
-const sections = [
-  { id: "background" as const, index: "01", label: "Fondo", icon: ImageIcon, state: "Listo" },
-  { id: "product" as const, index: "02", label: "Producto", icon: Box, state: "3 vistas" },
-  { id: "text" as const, index: "03", label: "Texto", icon: Type, state: "Opcional" },
-];
-
 export function EditorWorkspace() {
-  const [section, setSection] = useState<Section>("product");
+  const [background, setBackground] = useState<string | null>(null);
+  const [section, setSection] = useState<Section>("background");
   const [preview, setPreview] = useState<Preview>("scene");
   const [showProduct, setShowProduct] = useState(true);
   const [tray, setTray] = useState<"views" | "results">("views");
+  const hasBackground = background !== null;
+
+  const sections = [
+    {
+      id: "background" as const,
+      index: "01",
+      label: "Fondo",
+      icon: ImageIcon,
+      state: hasBackground ? "Listo" : "Requerido",
+    },
+    {
+      id: "product" as const,
+      index: "02",
+      label: "Producto",
+      icon: Box,
+      state: hasBackground ? "3 vistas" : "Bloqueado",
+    },
+    {
+      id: "text" as const,
+      index: "03",
+      label: "Texto",
+      icon: Type,
+      state: "Opcional",
+    },
+  ];
+
   return (
     <main className="flex min-h-svh flex-col overflow-x-hidden bg-workspace text-foreground">
       <header className="z-30 flex min-h-16 items-center border-b bg-background">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center border-r lg:w-64 lg:justify-start lg:px-5">
-          <BrandMark href="/dashboard" compact className="lg:hidden" />
+          <BrandMark href="/app" compact className="lg:hidden" />
           <div className="hidden lg:block">
-            <BrandMark href="/dashboard" />
+            <BrandMark href="/app" />
           </div>
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2 md:px-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Volver al proyecto"
-              render={<Link href="/app/proyecto-atlas" />}
-            >
-              <ArrowLeft />
-            </Button>
-            <div className="hidden min-w-0 sm:block">
-              <p className="truncate text-sm font-medium">Monolith — Dirección frontal</p>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                Guardado hace unos segundos
-              </p>
-            </div>
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate text-sm font-medium">Composición</p>
+            <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+              {hasBackground ? "Guardado hace unos segundos" : "Esperando fondo"}
+            </p>
           </div>
           <div className="hidden items-center border md:flex">
             <ToolbarButton label="Deshacer">
@@ -84,11 +96,16 @@ export function EditorWorkspace() {
               <ZoomIn />
             </ToolbarButton>
           </div>
-          <Button className="shrink-0">
-            <Sparkles aria-hidden="true" />
-            <span className="hidden sm:inline">Generar resultado</span>
-            <span className="sm:hidden">Generar</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button className="shrink-0" disabled={!hasBackground}>
+              <Sparkles aria-hidden="true" />
+              <span className="hidden sm:inline">Generar resultado</span>
+              <span className="sm:hidden">Generar</span>
+            </Button>
+            <div className="hidden lg:block">
+              <SignOutButton />
+            </div>
+          </div>
         </div>
       </header>
 
@@ -116,10 +133,18 @@ export function EditorWorkspace() {
             ))}
           </div>
           <div className="hidden p-5 lg:block">
-            <PanelContent section={section} />
+            <PanelContent
+              section={section}
+              background={background}
+              onClearBackground={() => setBackground(null)}
+            />
           </div>
           <div className="border-t p-4 lg:hidden">
-            <PanelContent section={section} />
+            <PanelContent
+              section={section}
+              background={background}
+              onClearBackground={() => setBackground(null)}
+            />
           </div>
         </aside>
 
@@ -149,27 +174,31 @@ export function EditorWorkspace() {
             </div>
           </div>
           <div className="technical-grid flex min-h-120 flex-1 items-center justify-center p-3 md:p-8">
-            <div
-              className={cn(
-                "relative w-full max-w-5xl border border-foreground/50 bg-background p-2 shadow-[8px_8px_0_0_var(--foreground)] md:p-3",
-                preview === "depth" && "grayscale contrast-200",
-                preview === "overlay" && "grayscale contrast-125",
-              )}
-            >
-              <div className="mb-2 flex items-center justify-between border-b px-1 pb-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                <span>Artboard 01 · 4:5</span>
-                <span>1080 × 1350</span>
-              </div>
-              <EditorScene
+            {!hasBackground ? (
+              <BackgroundDropzone onSelect={setBackground} />
+            ) : (
+              <div
                 className={cn(
-                  "min-h-130 lg:min-h-150",
-                  !showProduct && "[&_.scene-product]:opacity-0 [&_.scene-selection]:opacity-0",
+                  "relative w-full max-w-5xl border border-foreground/50 bg-background p-2 shadow-[8px_8px_0_0_var(--foreground)] md:p-3",
+                  preview === "depth" && "grayscale contrast-200",
+                  preview === "overlay" && "grayscale contrast-125",
                 )}
-              />
-              {preview === "depth" ? (
-                <div className="pointer-events-none absolute inset-x-3 bottom-3 top-11 bg-[repeating-linear-gradient(90deg,transparent_0,transparent_5%,color-mix(in_oklch,var(--foreground)_12%,transparent)_5.2%)] mix-blend-multiply" />
-              ) : null}
-            </div>
+              >
+                <div className="mb-2 flex items-center justify-between border-b px-1 pb-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                  <span>Artboard 01 · 4:5</span>
+                  <span>1080 × 1350</span>
+                </div>
+                <EditorScene
+                  className={cn(
+                    "min-h-130 lg:min-h-150",
+                    !showProduct && "[&_.scene-product]:opacity-0 [&_.scene-selection]:opacity-0",
+                  )}
+                />
+                {preview === "depth" ? (
+                  <div className="pointer-events-none absolute inset-x-3 bottom-3 top-11 bg-[repeating-linear-gradient(90deg,transparent_0,transparent_5%,color-mix(in_oklch,var(--foreground)_12%,transparent)_5.2%)] mix-blend-multiply" />
+                ) : null}
+              </div>
+            )}
           </div>
           <div className="border-t bg-background">
             <div className="flex h-11 items-center justify-between border-b px-3">
@@ -307,15 +336,86 @@ function TrayTab({
     </button>
   );
 }
-function PanelContent({ section }: { section: Section }) {
+function BackgroundDropzone({ onSelect }: { onSelect: (name: string) => void }) {
+  const fileId = useId();
+  const [dragging, setDragging] = useState(false);
+
+  return (
+    <label
+      htmlFor={fileId}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragging(false);
+        const dropped = event.dataTransfer.files?.[0];
+        if (dropped) {
+          onSelect(dropped.name);
+        }
+      }}
+      className={cn(
+        "flex w-full max-w-3xl cursor-pointer flex-col items-center justify-center gap-4 border border-dashed border-foreground/50 bg-background/80 p-10 text-center focus-within:ring-2 focus-within:ring-ring",
+        dragging && "border-foreground bg-muted",
+      )}
+    >
+      <ImageUp className="size-8" aria-hidden="true" />
+      <span className="text-2xl font-medium tracking-tight">Empieza por el fondo</span>
+      <span className="max-w-md text-sm leading-6 text-muted-foreground">
+        Sube la imagen del espacio. A partir de ella se genera la profundidad y se coloca el
+        producto.
+      </span>
+      <span className="inline-flex min-h-10 items-center gap-2 border px-4 text-sm font-medium">
+        <Upload className="size-4" aria-hidden="true" /> Seleccionar imagen
+      </span>
+      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        JPEG · PNG · WebP
+      </span>
+      <input
+        id={fileId}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        onChange={(event) => {
+          const selected = event.target.files?.[0];
+          if (selected) {
+            onSelect(selected.name);
+          }
+        }}
+      />
+    </label>
+  );
+}
+function PanelContent({
+  section,
+  background,
+  onClearBackground,
+}: {
+  section: Section;
+  background: string | null;
+  onClearBackground: () => void;
+}) {
   if (section === "background")
     return (
       <>
         <PanelHeading index="01" title="Fondo" text="Imagen espacial y mapa de profundidad." />
-        <AssetLine icon={ImageIcon} name="interior-brutalist-01.webp" meta="3840 × 2160" />
-        <Button variant="outline" className="mt-4 w-full">
-          <ScanLine aria-hidden="true" /> Ver profundidad
-        </Button>
+        {background ? (
+          <>
+            <AssetLine icon={ImageIcon} name={background} meta="Fondo cargado" />
+            <Button variant="outline" className="mt-4 w-full">
+              <ScanLine aria-hidden="true" /> Ver profundidad
+            </Button>
+            <Button variant="ghost" className="mt-2 w-full" onClick={onClearBackground}>
+              <RefreshCw aria-hidden="true" /> Cambiar fondo
+            </Button>
+          </>
+        ) : (
+          <p className="border-y py-4 text-sm leading-6 text-muted-foreground">
+            Sube una imagen en el área central para activar el resto de las herramientas.
+          </p>
+        )}
       </>
     );
   if (section === "text")
