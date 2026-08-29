@@ -68,10 +68,7 @@ export function EditorWorkspace() {
     <main className="flex min-h-svh flex-col overflow-x-hidden bg-workspace text-foreground">
       <header className="z-30 flex min-h-16 items-center border-b bg-background">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center border-r lg:w-64 lg:justify-start lg:px-5">
-          <BrandMark href="/app" compact className="lg:hidden" />
-          <div className="hidden lg:block">
-            <BrandMark href="/app" />
-          </div>
+          <BrandMark href="/app" />
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2 md:px-4">
           <div className="hidden min-w-0 sm:block">
