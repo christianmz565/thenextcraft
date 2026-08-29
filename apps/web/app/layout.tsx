@@ -18,10 +18,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const convexUrl =
-    process.env.CONVEX_PUBLIC_URL ||
-    process.env["NEXT_PUBLIC_CONVEX_URL"];
-
   return (
     <html
       lang="en"
@@ -30,7 +26,7 @@ export default function RootLayout({
     >
       <body>
         <ConvexAuthNextjsServerProvider>
-          <ConvexClientProvider initialConvexUrl={convexUrl}>
+          <ConvexClientProvider>
             <ThemeProvider>{children}</ThemeProvider>
           </ConvexClientProvider>
         </ConvexAuthNextjsServerProvider>
