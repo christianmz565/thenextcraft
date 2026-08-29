@@ -17,3 +17,5 @@ Thumbs.db
 *.log
 .direnv
 ejemplo.jack/**
+temp/
+.playwright-mcp/

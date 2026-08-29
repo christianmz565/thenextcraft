@@ -25,7 +25,14 @@ export default defineSchema({
     objectStorageId: v.id("_storage"),
     sceneStorageId: v.id("_storage"),
     depthStorageId: v.optional(v.id("_storage")),
-    status: v.union(v.literal("processing"), v.literal("completed"), v.literal("failed")),
+    // Colored version of the same map. Visualization only — never sampled.
+    colorStorageId: v.optional(v.id("_storage")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
     modelVersion: v.string(),
     error: v.optional(v.string()),
     createdAt: v.number(),
