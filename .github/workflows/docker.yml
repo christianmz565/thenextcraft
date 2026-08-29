@@ -3,6 +3,7 @@ name: container
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: container-${{ github.ref }}
