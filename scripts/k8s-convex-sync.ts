@@ -218,6 +218,10 @@ for (const [k, v] of envs) {
     stdio: "inherit",
   });
   if (r.status !== 0) {
+    if (k === "CONVEX_SITE_URL") {
+      log(`set ${k} failed (built-in, ignoring)`);
+      continue;
+    }
     console.error(`set ${k} failed`);
     process.exit(1);
   }

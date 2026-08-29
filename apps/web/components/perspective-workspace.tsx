@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { RotationEngine } from "@/components/rotation-engine";
 import { type Placement, SceneCanvas } from "@/components/scene-canvas";
+import { newTextLayer, TextLayerControls } from "@/components/text-layer-controls";
 import { Button } from "@/components/ui/button";
 import { useProductAngles } from "@/hooks/use-product-angles";
 import {
@@ -16,7 +17,10 @@ import {
   SCALE_MAX,
   SCALE_MIN,
 } from "@/lib/depth-scene";
+import type { TextLayer } from "@/lib/text-layers";
 import { cn } from "@/lib/utils";
+
+type RightTab = "angle" | "text";
 
 type StorageId = Id<"_storage">;
 type Selection = { url: string; storageId: StorageId } | null;
@@ -32,6 +36,11 @@ export function PerspectiveWorkspace({ job }: { job: HydratedDepthMap }) {
   const [showProduct, setShowProduct] = useState(true);
   const [chain, setChain] = useState(false);
   const [exportRequestId, setExportRequestId] = useState(0);
+  // Text is a sequential, optional step: it stays available throughout, but the
+  // right panel defaults to perspective so it is placed and rotated first.
+  const [rightTab, setRightTab] = useState<RightTab>("angle");
+  const [textLayers, setTextLayers] = useState<TextLayer[]>([]);
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
 
   const onPlacementChange = useCallback((next: Placement | null) => setPlacement(next), []);
 
@@ -61,6 +70,23 @@ export function PerspectiveWorkspace({ job }: { job: HydratedDepthMap }) {
   }, []);
 
   const camera = cameraFromRotation(rotation);
+
+  function addTextLayer() {
+    const layer = newTextLayer(textLayers.length);
+    setTextLayers((current) => [...current, layer]);
+    setSelectedTextId(layer.id);
+  }
+
+  function removeTextLayer(id: string) {
+    setTextLayers((current) => current.filter((layer) => layer.id !== id));
+    setSelectedTextId((current) => (current === id ? null : current));
+  }
+
+  function updateTextLayer(id: string, patch: Partial<TextLayer>) {
+    setTextLayers((current) =>
+      current.map((layer) => (layer.id === id ? { ...layer, ...patch } : layer)),
+    );
+  }
 
   async function generate() {
     const source = chain && selected ? selected.storageId : job.objectStorageId;
@@ -166,6 +192,11 @@ export function PerspectiveWorkspace({ job }: { job: HydratedDepthMap }) {
           onPlacementChange={onPlacementChange}
           exportRequestId={exportRequestId}
           onExported={onExported}
+          textLayers={textLayers}
+          selectedTextId={selectedTextId}
+          interactionMode={rightTab === "text" ? "text" : "place"}
+          onSelectText={setSelectedTextId}
+          onMoveText={(id, x, y) => updateTextLayer(id, { x, y })}
         />
         <AngleTray
           angles={angles}
@@ -177,63 +208,125 @@ export function PerspectiveWorkspace({ job }: { job: HydratedDepthMap }) {
       </div>
 
       <aside className="bg-background">
-        <PanelTitle index="B" title="Rotación del producto" />
-        <div className="border-b p-4">
-          <RotationEngine rotation={rotation} onChange={setRotation} />
+        <div className="flex items-center border-b">
+          <RightTabButton
+            index="B"
+            label="Perspectiva"
+            active={rightTab === "angle"}
+            onClick={() => setRightTab("angle")}
+          />
+          <RightTabButton
+            index="C"
+            label="Texto"
+            active={rightTab === "text"}
+            onClick={() => setRightTab("text")}
+            badge={textLayers.length || undefined}
+          />
         </div>
 
-        <div className="border-b p-4">
-          <dl className="space-y-1 font-mono text-[10px] uppercase tracking-wider">
-            <Readout label="Giro enviado" value={`${camera.rotateDegrees}°`} />
-            <Readout label="Inclinación" value={tiltLabel(camera.verticalTilt)} />
-            <Readout label="Eje Z" value="solo vista" />
-          </dl>
-          {Math.abs(radToDeg(rotation.y)) > 90 ? (
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              El servicio admite hasta 90°; el giro se recortará.
-            </p>
-          ) : null}
-        </div>
+        {rightTab === "angle" ? (
+          <>
+            <div className="border-b p-4">
+              <RotationEngine rotation={rotation} onChange={setRotation} />
+            </div>
 
-        <div className="p-4">
-          {selected ? (
-            <label className="mb-3 flex min-h-8 items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={chain}
-                onChange={(event) => setChain(event.target.checked)}
-                className="size-3.5 accent-foreground"
-              />
-              <Link2 className="size-3.5" aria-hidden="true" />
-              Encadenar desde la actual
-            </label>
-          ) : null}
-          <Button
-            className="w-full"
-            disabled={!hasPlacement || angles.isRunning}
-            onClick={() => void generate()}
-          >
-            {angles.isRunning ? (
-              <Loader2 className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Sparkles aria-hidden="true" />
-            )}
-            {angles.isRunning ? "Generando…" : "Generar perspectiva"}
-          </Button>
-          {angles.isRunning ? (
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              Estado: {statusLabel(angles.status)}
-            </p>
-          ) : null}
-          {angles.error ? (
-            <p className="mt-2 flex items-start gap-2 border border-destructive p-2 text-xs text-destructive">
-              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              {angles.error}
-            </p>
-          ) : null}
-        </div>
+            <div className="border-b p-4">
+              <dl className="space-y-1 font-mono text-[10px] uppercase tracking-wider">
+                <Readout label="Giro enviado" value={`${camera.rotateDegrees}°`} />
+                <Readout label="Inclinación" value={tiltLabel(camera.verticalTilt)} />
+                <Readout label="Eje Z" value="solo vista" />
+              </dl>
+              {Math.abs(radToDeg(rotation.y)) > 90 ? (
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                  El servicio admite hasta 90°; el giro se recortará.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="p-4">
+              {selected ? (
+                <label className="mb-3 flex min-h-8 items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={chain}
+                    onChange={(event) => setChain(event.target.checked)}
+                    className="size-3.5 accent-foreground"
+                  />
+                  <Link2 className="size-3.5" aria-hidden="true" />
+                  Encadenar desde la actual
+                </label>
+              ) : null}
+              <Button
+                className="w-full"
+                disabled={!hasPlacement || angles.isRunning}
+                onClick={() => void generate()}
+              >
+                {angles.isRunning ? (
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles aria-hidden="true" />
+                )}
+                {angles.isRunning ? "Generando…" : "Generar perspectiva"}
+              </Button>
+              {angles.isRunning ? (
+                <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Estado: {statusLabel(angles.status)}
+                </p>
+              ) : null}
+              {angles.error ? (
+                <p className="mt-2 flex items-start gap-2 border border-destructive p-2 text-xs text-destructive">
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                  {angles.error}
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <TextLayerControls
+            layers={textLayers}
+            selectedId={selectedTextId}
+            onSelect={setSelectedTextId}
+            onAdd={addTextLayer}
+            onRemove={removeTextLayer}
+            onChange={updateTextLayer}
+          />
+        )}
       </aside>
     </div>
+  );
+}
+
+function RightTabButton({
+  index,
+  label,
+  active,
+  onClick,
+  badge,
+}: {
+  index: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  badge?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex min-h-11 flex-1 items-center justify-center gap-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active && "bg-foreground text-background hover:text-background",
+      )}
+    >
+      <span className="grid size-4 place-items-center border text-[8px]">{index}</span>
+      {label}
+      {badge ? (
+        <span className="rounded-full bg-current px-1.5 text-[8px] leading-4 opacity-70">
+          {badge}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
