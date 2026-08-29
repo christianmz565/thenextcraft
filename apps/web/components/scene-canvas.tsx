@@ -20,6 +20,7 @@ import {
   toFieldPoint,
   VP_HANDLE_RADIUS,
 } from "@/lib/depth-scene";
+import { drawTextLayer, type TextLayer, textLayerBounds } from "@/lib/text-layers";
 import { cn } from "@/lib/utils";
 
 export type Placement = { cube: Cube; scale: number };
@@ -38,6 +39,17 @@ type SceneCanvasProps = {
   onPlacementChange: (placement: Placement | null) => void;
   exportRequestId: number;
   onExported: (dataUrl: string) => void;
+  /**
+   * Optional text sandwiched between the background and the product/cube, so the
+   * product visually sits in front of it — same product image used everywhere else,
+   * no separate subject extraction needed.
+   */
+  textLayers?: TextLayer[];
+  selectedTextId?: string | null;
+  /** "text" lets pointer events drag text layers instead of placing the cube. */
+  interactionMode?: "place" | "text";
+  onSelectText?: (id: string | null) => void;
+  onMoveText?: (id: string, x: number, y: number) => void;
 };
 
 export function SceneCanvas({
@@ -53,13 +65,19 @@ export function SceneCanvas({
   onPlacementChange,
   exportRequestId,
   onExported,
+  textLayers = [],
+  selectedTextId = null,
+  interactionMode = "place",
+  onSelectText,
+  onMoveText,
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneImageRef = useRef<HTMLImageElement | null>(null);
   const depthVisualRef = useRef<HTMLImageElement | null>(null);
   const fieldRef = useRef<DepthField | null>(null);
   const sizeRef = useRef({ width: 0, height: 0 });
-  const dragRef = useRef<"cube" | "vp" | null>(null);
+  const dragRef = useRef<"cube" | "vp" | "text" | null>(null);
+  const dragTextIdRef = useRef<string | null>(null);
 
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -152,6 +170,10 @@ export function SceneCanvas({
     const ink = readCssColor(canvas, "--foreground");
     const surface = readCssColor(canvas, "--background");
 
+    // Text sits behind the product/cube, so the inserted object reads as being in
+    // front of it — same sandwich as the reference "text behind subject" effect.
+    for (const layer of textLayers) drawTextLayer(context, layer, width, height);
+
     if (cube && showProduct && overlayImage && overlayBox) {
       drawProductSheet(context, cube, scale, rotation, overlayImage, overlayBox);
     } else if (cube) {
@@ -161,15 +183,23 @@ export function SceneCanvas({
     if (showVanishingPoint) {
       drawVanishingPoint(context, vpDisplay, cube, ink, surface);
     }
+
+    if (interactionMode === "text" && selectedTextId) {
+      const selected = textLayers.find((layer) => layer.id === selectedTextId);
+      if (selected) drawTextSelection(context, selected, width, height, ink);
+    }
   }, [
     cube,
+    interactionMode,
     overlayBox,
     overlayImage,
     rotation,
     scale,
+    selectedTextId,
     showDepth,
     showProduct,
     showVanishingPoint,
+    textLayers,
     vanishingPoint,
   ]);
 
@@ -231,13 +261,44 @@ export function SceneCanvas({
     setCube({ x: point.x, y: point.y, size: depthToSize(field, depth), depth });
   }
 
+  function textLayerAt(point: Point): TextLayer | null {
+    const context = canvasRef.current?.getContext("2d");
+    const { width, height } = sizeRef.current;
+    if (!context || !width || !height) return null;
+    // Topmost layer wins, mirroring paint order.
+    for (let index = textLayers.length - 1; index >= 0; index -= 1) {
+      const bounds = textLayerBounds(context, textLayers[index], width, height);
+      if (
+        point.x >= bounds.left &&
+        point.x <= bounds.right &&
+        point.y >= bounds.top &&
+        point.y <= bounds.bottom
+      ) {
+        return textLayers[index];
+      }
+    }
+    return null;
+  }
+
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     if (!ready) return;
+    const point = pointerPosition(event);
+
+    if (interactionMode === "text") {
+      const hit = textLayerAt(point);
+      onSelectText?.(hit?.id ?? null);
+      if (hit) {
+        dragRef.current = "text";
+        dragTextIdRef.current = hit.id;
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      return;
+    }
+
     const field = fieldRef.current;
     const { width, height } = sizeRef.current;
     if (!field) return;
 
-    const point = pointerPosition(event);
     event.currentTarget.setPointerCapture(event.pointerId);
 
     if (showVanishingPoint && vanishingPoint) {
@@ -254,11 +315,24 @@ export function SceneCanvas({
 
   function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
     if (!dragRef.current) return;
-    const field = fieldRef.current;
     const { width, height } = sizeRef.current;
+    const point = pointerPosition(event);
+
+    if (dragRef.current === "text") {
+      const id = dragTextIdRef.current;
+      if (id && width && height) {
+        onMoveText?.(
+          id,
+          Math.min(1, Math.max(0, point.x / width)),
+          Math.min(1, Math.max(0, point.y / height)),
+        );
+      }
+      return;
+    }
+
+    const field = fieldRef.current;
     if (!field) return;
 
-    const point = pointerPosition(event);
     if (dragRef.current === "vp") {
       setVanishingPoint(toFieldPoint(point, field, width, height));
       return;
@@ -268,6 +342,7 @@ export function SceneCanvas({
 
   function endDrag(event: React.PointerEvent<HTMLCanvasElement>) {
     dragRef.current = null;
+    dragTextIdRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -290,14 +365,44 @@ export function SceneCanvas({
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        className={cn("touch-none select-none", ready ? "cursor-crosshair" : "hidden")}
-        aria-label="Escena. Haz clic o arrastra para colocar la referencia."
+        className={cn(
+          "touch-none select-none",
+          !ready && "hidden",
+          ready && interactionMode === "text" ? "cursor-move" : "cursor-crosshair",
+        )}
+        aria-label={
+          interactionMode === "text"
+            ? "Escena. Haz clic sobre un texto para seleccionarlo y arrástralo."
+            : "Escena. Haz clic o arrastra para colocar la referencia."
+        }
       />
     </div>
   );
 }
 
 type Ink = { r: number; g: number; b: number };
+
+/** Dashed outline around the selected text layer, shown only while editing text. */
+function drawTextSelection(
+  context: CanvasRenderingContext2D,
+  layer: TextLayer,
+  width: number,
+  height: number,
+  ink: Ink,
+) {
+  const bounds = textLayerBounds(context, layer, width, height);
+  context.save();
+  context.strokeStyle = withAlpha(ink, 0.9);
+  context.lineWidth = 1.5;
+  context.setLineDash([4, 4]);
+  context.strokeRect(
+    bounds.left - 6,
+    bounds.top - 6,
+    bounds.right - bounds.left + 12,
+    bounds.bottom - bounds.top + 12,
+  );
+  context.restore();
+}
 
 /**
  * Product sheet with free 3D rotation. Orthographic projection turns the rotated
