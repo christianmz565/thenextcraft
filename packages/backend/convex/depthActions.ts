@@ -2,31 +2,13 @@
 
 import { internal } from "@backend/convex/_generated/api";
 import type { Id } from "@backend/convex/_generated/dataModel";
-import { type ActionCtx, internalAction } from "@backend/convex/_generated/server";
+import { internalAction } from "@backend/convex/_generated/server";
+import { getOutputUrl, storeFromUrl } from "@backend/convex/lib/replicate";
 import { v } from "convex/values";
 import Replicate from "replicate";
 
 const modelVersion =
   "chenxwh/depth-anything-v2:b239ea33cff32bb7abb5db39ffe9a09c14cbc2894331d1ef66fe096eed88ebd4";
-
-function getOutputUrl(value: unknown): string | null {
-  if (typeof value === "string") return value;
-  if (!value || typeof value !== "object") return null;
-
-  const candidate = value as { url?: unknown };
-  if (typeof candidate.url === "string") return candidate.url;
-  if (typeof candidate.url === "function") {
-    const url = candidate.url();
-    return url instanceof URL ? url.toString() : String(url);
-  }
-  return null;
-}
-
-async function storeFromUrl(ctx: ActionCtx, url: string, label: string): Promise<Id<"_storage">> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Could not download ${label}`);
-  return await ctx.storage.store(await response.blob());
-}
 
 /**
  * Runs Depth Anything V2 over the scene and stores both output maps.
