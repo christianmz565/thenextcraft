@@ -1,106 +1,96 @@
 "use client";
 
-import {
-  Box,
-  ChevronDown,
-  Download,
-  Eye,
-  Image as ImageIcon,
-  ImageUp,
-  Maximize2,
-  Plus,
-  Redo2,
-  RefreshCw,
-  RotateCw,
-  ScanLine,
-  SlidersHorizontal,
-  Sparkles,
-  Type,
-  Undo2,
-  Upload,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
-import { useId, useState } from "react";
+import { Authenticated, AuthLoading } from "convex/react";
+import { AlertTriangle, Check, Loader2, Lock, RefreshCw, ScanLine } from "lucide-react";
 
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BrandMark } from "@/components/brand-mark";
-import { EditorScene } from "@/components/editor-scene";
+import { ImageDropzone } from "@/components/image-dropzone";
+import { PerspectiveWorkspace } from "@/components/perspective-workspace";
 import { Button } from "@/components/ui/button";
+import { useDepthJob } from "@/hooks/use-depth-job";
+import { type UploadedImage, useImageUpload } from "@/hooks/use-image-upload";
 import { cn } from "@/lib/utils";
 
-type Section = "background" | "product" | "text";
-type Preview = "scene" | "depth" | "overlay";
-
 export function EditorWorkspace() {
-  const [background, setBackground] = useState<string | null>(null);
-  const [section, setSection] = useState<Section>("background");
-  const [preview, setPreview] = useState<Preview>("scene");
-  const [showProduct, setShowProduct] = useState(true);
-  const [tray, setTray] = useState<"views" | "results">("views");
-  const hasBackground = background !== null;
-
-  const sections = [
-    {
-      id: "background" as const,
-      index: "01",
-      label: "Fondo",
-      icon: ImageIcon,
-      state: hasBackground ? "Listo" : "Requerido",
-    },
-    {
-      id: "product" as const,
-      index: "02",
-      label: "Producto",
-      icon: Box,
-      state: hasBackground ? "3 vistas" : "Bloqueado",
-    },
-    {
-      id: "text" as const,
-      index: "03",
-      label: "Texto",
-      icon: Type,
-      state: "Opcional",
-    },
-  ];
-
   return (
     <main className="flex min-h-svh flex-col overflow-x-hidden bg-workspace text-foreground">
+      <AuthLoading>
+        <div className="grid flex-1 place-items-center p-6">
+          <p className="text-sm text-muted-foreground">Comprobando sesión…</p>
+        </div>
+      </AuthLoading>
+      <Authenticated>
+        <EditorSurface />
+      </Authenticated>
+    </main>
+  );
+}
+
+function EditorSurface() {
+  const scene = useImageUpload("scene");
+  const product = useImageUpload("object");
+  const depth = useDepthJob();
+
+  const hasScene = scene.image !== null;
+  const hasProduct = product.image !== null;
+  const bothReady = hasScene && hasProduct;
+  const isCompleted = depth.status === "completed";
+  const isRestoring = depth.isRestoring || scene.isRestoring || product.isRestoring;
+
+  if (isRestoring) {
+    return (
+      <div className="grid flex-1 place-items-center p-6">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Recuperando tu trabajo…
+        </p>
+      </div>
+    );
+  }
+
+  async function process() {
+    if (!scene.image || !product.image) return;
+    await depth.start({
+      sceneStorageId: scene.image.storageId,
+      objectStorageId: product.image.storageId,
+    });
+  }
+
+  return (
+    <>
       <header className="z-30 flex min-h-16 items-center border-b bg-background">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center border-r lg:w-64 lg:justify-start lg:px-5">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center border-r lg:w-72 lg:justify-start lg:px-5">
           <BrandMark href="/app" compact className="lg:hidden" />
           <div className="hidden lg:block">
             <BrandMark href="/app" />
           </div>
         </div>
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 px-2 md:px-4">
-          <div className="hidden min-w-0 sm:block">
-            <p className="truncate text-sm font-medium">Composición</p>
-            <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              {hasBackground ? "Guardado hace unos segundos" : "Esperando fondo"}
-            </p>
-          </div>
-          <div className="hidden items-center border md:flex">
-            <ToolbarButton label="Deshacer">
-              <Undo2 />
-            </ToolbarButton>
-            <ToolbarButton label="Rehacer">
-              <Redo2 />
-            </ToolbarButton>
-            <span className="h-7 border-l" />
-            <ToolbarButton label="Alejar">
-              <ZoomOut />
-            </ToolbarButton>
-            <span className="w-12 text-center font-mono text-[10px]">82%</span>
-            <ToolbarButton label="Acercar">
-              <ZoomIn />
-            </ToolbarButton>
-          </div>
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 md:px-4">
+          <ol className="hidden min-w-0 items-center gap-3 font-mono text-[10px] uppercase tracking-wider md:flex">
+            <StepChip index="01" label="Imágenes" done={bothReady} active={!bothReady} />
+            <span className="text-muted-foreground">→</span>
+            <StepChip
+              index="02"
+              label="Profundidad"
+              done={isCompleted}
+              active={bothReady && !isCompleted}
+            />
+          </ol>
           <div className="flex items-center gap-2">
-            <Button className="shrink-0" disabled={!hasBackground}>
-              <Sparkles aria-hidden="true" />
-              <span className="hidden sm:inline">Generar resultado</span>
-              <span className="sm:hidden">Generar</span>
+            <Button
+              disabled={!bothReady || depth.isRunning}
+              onClick={() => void process()}
+              title={!bothReady ? "Sube el fondo y el producto" : undefined}
+            >
+              {depth.isRunning ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
+              ) : (
+                <ScanLine aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">
+                {depth.isRunning ? "Procesando…" : isCompleted ? "Procesar de nuevo" : "Procesar"}
+              </span>
+              <span className="sm:hidden">Procesar</span>
             </Button>
             <div className="hidden lg:block">
               <SignOutButton />
@@ -109,470 +99,245 @@ export function EditorWorkspace() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[256px_minmax(0,1fr)_288px]">
+      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[288px_minmax(0,1fr)]">
         <aside className="border-b bg-background lg:border-r lg:border-b-0">
-          <div className="grid grid-cols-3 lg:block">
-            {sections.map(({ id, index, label, icon: Icon, state }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setSection(id)}
-                aria-pressed={section === id}
-                className={cn(
-                  "flex min-h-18 items-center gap-3 border-r px-3 text-left last:border-r-0 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring lg:w-full lg:border-r-0 lg:border-b lg:px-5",
-                  section === id && "bg-foreground text-background hover:bg-foreground",
-                )}
-              >
-                <span className="hidden font-mono text-[10px] opacity-60 lg:block">{index}</span>
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="min-w-0">
-                  <strong className="block text-xs font-medium lg:text-sm">{label}</strong>
-                  <span className="hidden text-[10px] opacity-60 lg:block">{state}</span>
-                </span>
-              </button>
-            ))}
+          <div className="border-b p-5">
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+              Paso 01 / Requerido
+            </p>
+            <h2 className="mt-2 text-2xl font-medium tracking-tight">Imágenes</h2>
+            <p className="mt-2 text-sm leading-5 text-muted-foreground">
+              Sube el fondo y el producto. Ambos son necesarios para generar la profundidad.
+            </p>
           </div>
-          <div className="hidden p-5 lg:block">
-            <PanelContent
-              section={section}
-              background={background}
-              onClearBackground={() => setBackground(null)}
-            />
-          </div>
-          <div className="border-t p-4 lg:hidden">
-            <PanelContent
-              section={section}
-              background={background}
-              onClearBackground={() => setBackground(null)}
-            />
-          </div>
-        </aside>
-
-        <section className="flex min-h-0 min-w-0 flex-col">
-          <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b bg-background px-3">
-            <fieldset className="flex items-center gap-1" aria-label="Modo de vista">
-              <ViewButton active={preview === "scene"} onClick={() => setPreview("scene")}>
-                Escena
-              </ViewButton>
-              <ViewButton active={preview === "depth"} onClick={() => setPreview("depth")}>
-                Profundidad
-              </ViewButton>
-              <ViewButton active={preview === "overlay"} onClick={() => setPreview("overlay")}>
-                Superposición
-              </ViewButton>
-            </fieldset>
-            <div className="flex items-center gap-1">
-              <ToolbarButton label="Ajustar a vista">
-                <Maximize2 />
-              </ToolbarButton>
-              <ToolbarButton
-                label={showProduct ? "Ocultar producto" : "Mostrar producto"}
-                onClick={() => setShowProduct((value) => !value)}
-              >
-                <Eye />
-              </ToolbarButton>
-            </div>
-          </div>
-          <div className="technical-grid flex min-h-120 flex-1 items-center justify-center p-3 md:p-8">
-            {!hasBackground ? (
-              <BackgroundDropzone onSelect={setBackground} />
-            ) : (
-              <div
-                className={cn(
-                  "relative w-full max-w-5xl border border-foreground/50 bg-background p-2 shadow-[8px_8px_0_0_var(--foreground)] md:p-3",
-                  preview === "depth" && "grayscale contrast-200",
-                  preview === "overlay" && "grayscale contrast-125",
-                )}
-              >
-                <div className="mb-2 flex items-center justify-between border-b px-1 pb-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                  <span>Artboard 01 · 4:5</span>
-                  <span>1080 × 1350</span>
-                </div>
-                <EditorScene
-                  className={cn(
-                    "min-h-130 lg:min-h-150",
-                    !showProduct && "[&_.scene-product]:opacity-0 [&_.scene-selection]:opacity-0",
-                  )}
-                />
-                {preview === "depth" ? (
-                  <div className="pointer-events-none absolute inset-x-3 bottom-3 top-11 bg-[repeating-linear-gradient(90deg,transparent_0,transparent_5%,color-mix(in_oklch,var(--foreground)_12%,transparent)_5.2%)] mix-blend-multiply" />
+          <AssetRow
+            index="A"
+            label="Fondo"
+            asset={scene.image}
+            onReset={() => {
+              scene.reset();
+              depth.reset();
+            }}
+          />
+          <AssetRow
+            index="B"
+            label="Producto"
+            asset={product.image}
+            onReset={() => {
+              product.reset();
+              depth.reset();
+            }}
+          />
+          <div className="border-b p-5">
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+              Paso 02
+            </p>
+            <h3 className="mt-2 flex items-center gap-2 text-sm font-medium">
+              {bothReady ? null : <Lock className="size-3.5" aria-hidden="true" />}
+              Mapa de profundidad
+            </h3>
+            <p className="mt-2 text-sm leading-5 text-muted-foreground">
+              {bothReady
+                ? "Envía las imágenes al servicio para estimar la profundidad de la escena."
+                : "Se activa cuando ambas imágenes estén cargadas."}
+            </p>
+            {depth.status !== "idle" ? (
+              <>
+                <p className="mt-4 border-t pt-3 font-mono text-[10px] uppercase tracking-wider">
+                  Estado: {statusLabel(depth.status)}
+                </p>
+                {isCompleted ? (
+                  <Button
+                    variant="ghost"
+                    className="mt-3 w-full"
+                    onClick={() => {
+                      depth.reset();
+                      scene.reset();
+                      product.reset();
+                    }}
+                  >
+                    <RefreshCw aria-hidden="true" /> Empezar de nuevo
+                  </Button>
                 ) : null}
-              </div>
-            )}
-          </div>
-          <div className="border-t bg-background">
-            <div className="flex h-11 items-center justify-between border-b px-3">
-              <div className="flex h-full">
-                <TrayTab active={tray === "views"} onClick={() => setTray("views")}>
-                  Vistas del producto · 03
-                </TrayTab>
-                <TrayTab active={tray === "results"} onClick={() => setTray("results")}>
-                  Resultados · 12
-                </TrayTab>
-              </div>
-              <Button size="xs" variant="ghost">
-                <Plus aria-hidden="true" /> Nueva vista
-              </Button>
-            </div>
-            <div className="flex gap-2 overflow-x-auto p-3">
-              {tray === "views" ? (
-                <>
-                  <Thumbnail label="Base" active />
-                  <Thumbnail label="3/4 izquierda" />
-                  <Thumbnail label="Lateral" processing />
-                </>
-              ) : (
-                <>
-                  <ResultThumb number="012" />
-                  <ResultThumb number="011" />
-                  <ResultThumb number="010" />
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <aside className="border-t bg-background lg:border-t-0 lg:border-l">
-          <div className="flex h-14 items-center justify-between border-b px-5">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal className="size-4" aria-hidden="true" />
-              <h2 className="text-sm font-medium">Inspector</h2>
-            </div>
-            <span className="font-mono text-[9px] uppercase text-muted-foreground">Producto</span>
-          </div>
-          <div className="divide-y">
-            <InspectorSection title="Transformación">
-              <FieldGrid title="Posición" values={["X  0.42", "Y  1.18", "Z  -0.12"]} />
-              <FieldGrid title="Rotación" values={["X  0°", "Y  -18°", "Z  1°"]} />
-              <FieldGrid title="Escala" values={["X  1.00", "Y  1.00", "Z  1.00"]} />
-            </InspectorSection>
-            <InspectorSection title="Perspectiva">
-              <RangeField label="Distancia focal" value="35 mm" />
-              <RangeField label="Punto de fuga" value="68 / 43" />
-              <label className="mt-4 flex min-h-11 items-center justify-between border-t pt-3 text-xs">
-                <span>Mostrar ejes</span>
-                <input type="checkbox" defaultChecked className="size-4 accent-foreground" />
-              </label>
-            </InspectorSection>
-            <InspectorSection title="Apariencia">
-              <RangeField label="Opacidad" value="100%" />
-              <RangeField label="Sombra" value="24%" />
-            </InspectorSection>
-          </div>
-          <div className="p-4">
-            <Button variant="outline" className="w-full" disabled>
-              <Download aria-hidden="true" /> Exportar vista
-            </Button>
+              </>
+            ) : null}
           </div>
         </aside>
-      </div>
-    </main>
-  );
-}
 
-function ToolbarButton({
-  label,
-  children,
-  onClick,
-}: {
-  label: string;
-  children: React.ReactNode;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className="grid size-10 place-items-center hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&_svg]:size-4"
-    >
-      {children}
-    </button>
-  );
-}
-function ViewButton({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "min-h-8 px-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        active && "bg-foreground text-background hover:text-background",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-function TrayTab({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "h-full border-r px-3 font-mono text-[9px] uppercase tracking-wider text-muted-foreground",
-        active && "bg-muted text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-function BackgroundDropzone({ onSelect }: { onSelect: (name: string) => void }) {
-  const fileId = useId();
-  const [dragging, setDragging] = useState(false);
-
-  return (
-    <label
-      htmlFor={fileId}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setDragging(false);
-        const dropped = event.dataTransfer.files?.[0];
-        if (dropped) {
-          onSelect(dropped.name);
-        }
-      }}
-      className={cn(
-        "flex w-full max-w-3xl cursor-pointer flex-col items-center justify-center gap-4 border border-dashed border-foreground/50 bg-background/80 p-10 text-center focus-within:ring-2 focus-within:ring-ring",
-        dragging && "border-foreground bg-muted",
-      )}
-    >
-      <ImageUp className="size-8" aria-hidden="true" />
-      <span className="text-2xl font-medium tracking-tight">Empieza por el fondo</span>
-      <span className="max-w-md text-sm leading-6 text-muted-foreground">
-        Sube la imagen del espacio. A partir de ella se genera la profundidad y se coloca el
-        producto.
-      </span>
-      <span className="inline-flex min-h-10 items-center gap-2 border px-4 text-sm font-medium">
-        <Upload className="size-4" aria-hidden="true" /> Seleccionar imagen
-      </span>
-      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-        JPEG · PNG · WebP
-      </span>
-      <input
-        id={fileId}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="sr-only"
-        onChange={(event) => {
-          const selected = event.target.files?.[0];
-          if (selected) {
-            onSelect(selected.name);
-          }
-        }}
-      />
-    </label>
-  );
-}
-function PanelContent({
-  section,
-  background,
-  onClearBackground,
-}: {
-  section: Section;
-  background: string | null;
-  onClearBackground: () => void;
-}) {
-  if (section === "background")
-    return (
-      <>
-        <PanelHeading index="01" title="Fondo" text="Imagen espacial y mapa de profundidad." />
-        {background ? (
-          <>
-            <AssetLine icon={ImageIcon} name={background} meta="Fondo cargado" />
-            <Button variant="outline" className="mt-4 w-full">
-              <ScanLine aria-hidden="true" /> Ver profundidad
-            </Button>
-            <Button variant="ghost" className="mt-2 w-full" onClick={onClearBackground}>
-              <RefreshCw aria-hidden="true" /> Cambiar fondo
-            </Button>
-          </>
-        ) : (
-          <p className="border-y py-4 text-sm leading-6 text-muted-foreground">
-            Sube una imagen en el área central para activar el resto de las herramientas.
-          </p>
-        )}
-      </>
-    );
-  if (section === "text")
-    return (
-      <>
-        <PanelHeading index="03" title="Texto" text="Capas tipográficas opcionales." />
-        <button
-          type="button"
-          className="flex min-h-14 w-full items-center justify-between border-y text-sm"
-        >
-          <span>STILL FORM.</span>
-          <Eye className="size-4" />
-        </button>
-        <Button variant="outline" className="mt-4 w-full">
-          <Plus aria-hidden="true" /> Añadir capa
-        </Button>
-      </>
-    );
-  return (
-    <>
-      <PanelHeading index="02" title="Producto" text="Vista limpia y orientaciones generadas." />
-      <div className="checkerboard grid aspect-square place-items-center border">
-        <div className="relative h-32 w-24">
-          <div className="absolute inset-x-2 top-0 h-20 border bg-foreground" />
-          <div className="absolute inset-x-0 top-18 h-7 border bg-foreground" />
-          <div className="absolute bottom-0 left-3 h-16 w-3 bg-foreground" />
-          <div className="absolute bottom-0 right-3 h-16 w-3 bg-foreground" />
-        </div>
+        <section className="technical-grid flex min-h-120 flex-1 flex-col items-center justify-center gap-4 p-3 md:p-8">
+          {depth.error ? <ErrorNote message={depth.error} /> : null}
+          {isCompleted && depth.job ? (
+            <PerspectiveWorkspace job={depth.job} />
+          ) : (
+            <div className="grid w-full max-w-6xl gap-4 lg:grid-cols-2">
+              <UploadSlot
+                title="Fondo"
+                hint="Imagen del espacio donde se integrará el producto."
+                asset={scene.image}
+                busy={scene.isUploading}
+                error={scene.error}
+                onSelect={(file) => void scene.upload(file)}
+              />
+              <UploadSlot
+                title="Producto"
+                hint="Imagen del producto que se colocará en la escena."
+                asset={product.image}
+                busy={product.isUploading}
+                error={product.error}
+                checkerboard
+                onSelect={(file) => void product.upload(file)}
+              />
+            </div>
+          )}
+        </section>
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs">
-        <span>monolith-clean.png</span>
-        <span className="font-mono text-[9px] text-muted-foreground">LISTO</span>
-      </div>
-      <Button className="mt-5 w-full">
-        <RotateCw aria-hidden="true" /> Generar nueva vista
-      </Button>
-      <Button variant="ghost" className="mt-2 w-full">
-        <Upload aria-hidden="true" /> Reemplazar producto
-      </Button>
     </>
   );
 }
-function PanelHeading({ index, title, text }: { index: string; title: string; text: string }) {
-  return (
-    <div className="mb-6">
-      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-        {index} / Recurso
-      </p>
-      <h2 className="mt-2 text-2xl font-medium tracking-tight">{title}</h2>
-      <p className="mt-2 text-sm leading-5 text-muted-foreground">{text}</p>
-    </div>
-  );
-}
-function AssetLine({
-  icon: Icon,
-  name,
-  meta,
-}: {
-  icon: typeof ImageIcon;
-  name: string;
-  meta: string;
-}) {
-  return (
-    <div className="border-y py-4">
-      <Icon className="mb-5 size-5" />
-      <p className="truncate text-xs font-medium">{name}</p>
-      <p className="mt-1 font-mono text-[9px] text-muted-foreground">{meta}</p>
-    </div>
-  );
-}
-function Thumbnail({
+
+function StepChip({
+  index,
   label,
-  active = false,
-  processing = false,
+  done,
+  active,
 }: {
+  index: string;
   label: string;
-  active?: boolean;
-  processing?: boolean;
+  done: boolean;
+  active: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <li
       className={cn(
-        "w-28 shrink-0 border p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        active && "border-foreground",
+        "flex items-center gap-2 border px-2 py-1",
+        done && "bg-foreground text-background",
+        !done && active && "border-foreground",
+        !done && !active && "text-muted-foreground",
       )}
     >
-      <div className="checkerboard grid aspect-square place-items-center">
-        <Box className={cn("size-9", processing && "opacity-30")} />
-        {processing ? <span className="absolute font-mono text-[8px]">PROCESANDO</span> : null}
-      </div>
-      <span className="mt-1 block truncate px-1 text-[10px]">{label}</span>
-    </button>
+      {done ? <Check className="size-3" aria-hidden="true" /> : <span>{index}</span>}
+      {label}
+    </li>
   );
 }
-function ResultThumb({ number }: { number: string }) {
+
+function UploadSlot({
+  title,
+  hint,
+  asset,
+  busy,
+  error,
+  checkerboard = false,
+  onSelect,
+}: {
+  title: string;
+  hint: string;
+  asset: UploadedImage | null;
+  busy: boolean;
+  error: string | null;
+  checkerboard?: boolean;
+  onSelect: (file: File) => void;
+}) {
   return (
-    <button
-      type="button"
-      className="w-28 shrink-0 border p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <div className="aspect-square bg-foreground p-3 text-background">
-        <span className="font-mono text-[8px]">RESULTADO</span>
-        <p className="mt-5 text-lg font-medium leading-none">
-          STILL
-          <br />
-          FORM.
-        </p>
-      </div>
-      <span className="mt-1 block px-1 font-mono text-[9px]">#{number}</span>
-    </button>
-  );
-}
-function InspectorSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="p-5">
-      <button
-        type="button"
-        className="mb-5 flex min-h-8 w-full items-center justify-between text-left text-xs font-medium"
-      >
-        <span>{title}</span>
-        <ChevronDown className="size-3" />
-      </button>
-      {children}
-    </section>
-  );
-}
-function FieldGrid({ title, values }: { title: string; values: string[] }) {
-  return (
-    <div className="mb-4">
-      <p className="mb-2 font-mono text-[9px] uppercase text-muted-foreground">{title}</p>
-      <div className="grid grid-cols-3 gap-px bg-border">
-        {values.map((value) => (
-          <input
-            key={value}
-            aria-label={`${title} ${value.charAt(0)}`}
-            defaultValue={value}
-            className="h-9 min-w-0 bg-muted px-2 font-mono text-[9px] outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring"
+    <div className="flex min-w-0 flex-col">
+      {asset ? (
+        <figure className="border border-foreground/50 bg-background p-2">
+          <figcaption className="mb-2 flex items-center justify-between gap-3 border-b px-1 pb-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+            <span className="truncate">{title}</span>
+            {asset.width && asset.height ? (
+              <span>
+                {asset.width} × {asset.height}
+              </span>
+            ) : (
+              <span>Guardado</span>
+            )}
+          </figcaption>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={asset.previewUrl}
+            alt={`${title}: ${asset.fileName}`}
+            className={cn(
+              "max-h-[46svh] w-full object-contain",
+              checkerboard ? "checkerboard" : "bg-canvas",
+            )}
           />
-        ))}
-      </div>
+        </figure>
+      ) : (
+        <ImageDropzone
+          title={`Sube el ${title.toLowerCase()}`}
+          hint={hint}
+          busy={busy}
+          onSelect={onSelect}
+        />
+      )}
+      {error ? <ErrorNote message={error} /> : null}
     </div>
   );
 }
-function RangeField({ label, value }: { label: string; value: string }) {
+
+function AssetRow({
+  index,
+  label,
+  asset,
+  onReset,
+}: {
+  index: string;
+  label: string;
+  asset: UploadedImage | null;
+  onReset: () => void;
+}) {
   return (
-    <label className="mb-4 block">
-      <span className="mb-2 flex justify-between text-[10px]">
-        <span>{label}</span>
-        <span className="font-mono text-muted-foreground">{value}</span>
-      </span>
-      <input
-        type="range"
-        className="h-4 w-full accent-foreground"
-        defaultValue="62"
-        aria-label={label}
-      />
-    </label>
+    <div className="flex items-start justify-between gap-3 border-b p-5">
+      <div className="min-w-0">
+        <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+          {index} · {label}
+        </p>
+        {asset ? (
+          <>
+            <p className="mt-1 truncate text-sm font-medium">{asset.fileName}</p>
+            <p className="mt-1 font-mono text-[9px] text-muted-foreground">
+              {describeAsset(asset)}
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">Sin cargar</p>
+        )}
+      </div>
+      {asset ? (
+        <Button variant="ghost" size="icon-sm" aria-label={`Cambiar ${label}`} onClick={onReset}>
+          <RefreshCw />
+        </Button>
+      ) : null}
+    </div>
   );
+}
+
+function ErrorNote({ message }: { message: string }) {
+  return (
+    <p className="mt-3 flex w-full max-w-3xl items-start gap-2 border border-destructive bg-background p-3 text-sm text-destructive">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      {message}
+    </p>
+  );
+}
+
+function statusLabel(status: string) {
+  if (status === "pending") return "En cola";
+  if (status === "processing") return "Procesando";
+  if (status === "completed") return "Listo";
+  if (status === "failed") return "Falló";
+  return "Sin iniciar";
+}
+
+function describeAsset(asset: UploadedImage) {
+  const parts: string[] = [];
+  if (asset.width && asset.height) parts.push(`${asset.width} × ${asset.height}`);
+  if (asset.size !== null) parts.push(formatBytes(asset.size));
+  return parts.length > 0 ? parts.join(" · ") : "Recuperado del almacenamiento";
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

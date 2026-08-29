@@ -183,6 +183,7 @@ const requiredKeys = [
   "JWT_PRIVATE_KEY",
   "JWKS",
   "SITE_URL",
+  "REPLICATE_API_KEY",
 ];
 for (const k of requiredKeys) {
   if (!process.env[k]) {
@@ -198,6 +199,7 @@ const envs: Array<[string, string]> = [
   ["CONVEX_SITE_URL", process.env.CONVEX_SITE_URL ?? ""],
   ["JWT_PRIVATE_KEY", process.env.JWT_PRIVATE_KEY ?? ""],
   ["JWKS", process.env.JWKS ?? ""],
+  ["REPLICATE_API_KEY", process.env.REPLICATE_API_KEY ?? ""],
 ];
 
 for (const [k, v] of envs) {

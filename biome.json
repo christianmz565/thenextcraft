@@ -14,7 +14,9 @@
       "!**/build",
       "!**/.next",
       "!**/convex/_generated",
-      "!**/_generated"
+      "!**/_generated",
+      "!.agents",
+      "!temp"
     ]
   },
   "formatter": {
