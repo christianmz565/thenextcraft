@@ -30,7 +30,7 @@ function run(
     cwd: opts.cwd,
     input: opts.input,
     stdio: opts.stdio ?? "pipe",
-  } as any);
+  });
 }
 
 function ensureDb(): void {
