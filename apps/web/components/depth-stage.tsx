@@ -5,10 +5,12 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  type CameraParams,
   type Cube,
   cubeVertices,
   type DepthField,
   depthToSize,
+  deriveCamera,
   estimateVanishingPoint,
   type Point,
   readDepthField,
@@ -21,9 +23,34 @@ import {
 } from "@/lib/depth-scene";
 import { cn } from "@/lib/utils";
 
-type DepthStageProps = { sceneUrl: string; depthUrl: string; colorDepthUrl: string | null };
+type DepthStageProps = {
+  sceneUrl: string;
+  depthUrl: string;
+  colorDepthUrl: string | null;
+  /** When set, the cube is replaced by this product cutout. */
+  overlayUrl?: string | null;
+  /** Reports the current placement so the parent can derive camera params and export. */
+  onPlacementChange?: (placement: Placement | null) => void;
+  exportRequestId?: number;
+  onExported?: (dataUrl: string) => void;
+};
 
-export function DepthStage({ sceneUrl, depthUrl, colorDepthUrl }: DepthStageProps) {
+export type Placement = {
+  cube: Cube;
+  vanishingPoint: Point;
+  scale: number;
+  camera: CameraParams;
+};
+
+export function DepthStage({
+  sceneUrl,
+  depthUrl,
+  colorDepthUrl,
+  overlayUrl = null,
+  onPlacementChange,
+  exportRequestId,
+  onExported,
+}: DepthStageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneImageRef = useRef<HTMLImageElement | null>(null);
   const depthVisualRef = useRef<HTMLImageElement | null>(null);
@@ -39,6 +66,7 @@ export function DepthStage({ sceneUrl, depthUrl, colorDepthUrl }: DepthStageProp
   const [scale, setScale] = useState(1);
   const dragRef = useRef<"cube" | "vp" | null>(null);
   const scaleId = useId();
+  const [overlayImage, setOverlayImage] = useState<HTMLImageElement | null>(null);
 
   // Load scene, depth map and optional colored map before enabling interaction.
   useEffect(() => {
@@ -98,7 +126,21 @@ export function DepthStage({ sceneUrl, depthUrl, colorDepthUrl }: DepthStageProp
       ? toDisplayPoint(vanishingPoint, field, width, height)
       : { x: width / 2, y: height / 2 };
 
-    if (cube) {
+    // With a generated perspective the product replaces the cube at the same spot.
+    const overlay = overlayImage;
+    if (cube && overlay) {
+      const size = cube.size * scale;
+      const aspect = overlay.naturalWidth / (overlay.naturalHeight || 1);
+      const drawHeight = size;
+      const drawWidth = size * aspect;
+      context.drawImage(
+        overlay,
+        cube.x - drawWidth / 2,
+        cube.y - drawHeight,
+        drawWidth,
+        drawHeight,
+      );
+    } else if (cube) {
       const vertices = cubeVertices(cube, vpDisplay, scale);
       const foreground = readCssColor(canvas, "--foreground");
       const surface = readCssColor(canvas, "--background");
@@ -156,7 +198,7 @@ export function DepthStage({ sceneUrl, depthUrl, colorDepthUrl }: DepthStageProp
       );
     }
 
-    if (showVanishingPoint) {
+    if (showVanishingPoint && !overlayImage) {
       const vpColor = readCssColor(canvas, "--foreground");
       if (cube) {
         context.save();
@@ -184,7 +226,7 @@ export function DepthStage({ sceneUrl, depthUrl, colorDepthUrl }: DepthStageProp
       context.stroke();
       context.restore();
     }
-  }, [cube, scale, showDepth, showVanishingPoint, vanishingPoint]);
+  }, [cube, overlayImage, scale, showDepth, showVanishingPoint, vanishingPoint]);
 
   // Fit the canvas to its container while preserving the scene aspect ratio.
   useEffect(() => {
@@ -215,6 +257,55 @@ export function DepthStage({ sceneUrl, depthUrl, colorDepthUrl }: DepthStageProp
   useEffect(() => {
     if (ready) render();
   }, [ready, render]);
+
+  // Load the product cutout that replaces the cube.
+  useEffect(() => {
+    let cancelled = false;
+    if (!overlayUrl) {
+      setOverlayImage(null);
+      return;
+    }
+    loadImage(overlayUrl)
+      .then((image) => {
+        if (!cancelled) setOverlayImage(image);
+      })
+      .catch(() => {
+        if (!cancelled) setOverlayImage(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [overlayUrl]);
+
+  // Report placement so the parent can derive camera params for the angle service.
+  useEffect(() => {
+    if (!onPlacementChange) return;
+    const field = fieldRef.current;
+    const { width, height } = sizeRef.current;
+    if (!cube || !vanishingPoint || !field || !width || !height) {
+      onPlacementChange(null);
+      return;
+    }
+    const vpDisplay = toDisplayPoint(vanishingPoint, field, width, height);
+    onPlacementChange({
+      cube,
+      vanishingPoint: vpDisplay,
+      scale,
+      camera: deriveCamera(cube, vpDisplay),
+    });
+  }, [cube, onPlacementChange, scale, vanishingPoint]);
+
+  // Export the composed canvas as a PNG when the parent bumps the request id.
+  useEffect(() => {
+    if (!exportRequestId || !onExported) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      onExported(canvas.toDataURL("image/png"));
+    } catch {
+      // Ignore: a tainted canvas cannot be exported.
+    }
+  }, [exportRequestId, onExported]);
 
   function pointerPosition(event: React.PointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();

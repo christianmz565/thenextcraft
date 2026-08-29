@@ -4,15 +4,21 @@ import type { HydratedDepthMap } from "backend/convex/depth.js";
 import { useState } from "react";
 
 import { DepthStage } from "@/components/depth-stage";
+import { PerspectivePanel } from "@/components/perspective-panel";
 import { cn } from "@/lib/utils";
 
-type View = "cube" | "scene" | "depth" | "color" | "product";
+type View = "cube" | "perspective" | "scene" | "depth" | "color" | "product";
 
 export function DepthResult({ job }: { job: HydratedDepthMap }) {
   const [view, setView] = useState<View>("cube");
 
   const views: { id: View; label: string; enabled: boolean }[] = [
     { id: "cube", label: "Escena + cubo", enabled: Boolean(job.sceneUrl && job.depthUrl) },
+    {
+      id: "perspective",
+      label: "Perspectivas",
+      enabled: Boolean(job.sceneUrl && job.depthUrl),
+    },
     { id: "scene", label: "Fondo", enabled: Boolean(job.sceneUrl) },
     { id: "product", label: "Producto", enabled: Boolean(job.objectUrl) },
     { id: "depth", label: "Profundidad", enabled: Boolean(job.depthUrl) },
@@ -39,7 +45,9 @@ export function DepthResult({ job }: { job: HydratedDepthMap }) {
         ))}
       </div>
 
-      {view === "cube" && job.sceneUrl && job.depthUrl ? (
+      {view === "perspective" ? (
+        <PerspectivePanel job={job} />
+      ) : view === "cube" && job.sceneUrl && job.depthUrl ? (
         <DepthStage
           sceneUrl={job.sceneUrl}
           depthUrl={job.depthUrl}

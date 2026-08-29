@@ -186,3 +186,29 @@ export function cubeVertices(cube: Cube, vanishingPoint: Point, scale: number) {
     size,
   };
 }
+
+/** Below this horizontal angle the model receives no tilt, as in the prototype. */
+export const VERTICAL_TILT_THRESHOLD_DEG = 20;
+
+export type CameraParams = { rotateDegrees: number; verticalTilt: number };
+
+/**
+ * Derives the camera parameters the angle service expects from the cube's placement.
+ * The cube has no manual rotation: it already leans toward the vanishing point, so that
+ * same relation defines how far the camera turned and whether it looks down or up.
+ */
+export function deriveCamera(cube: Cube, vanishingPoint: Point): CameraParams {
+  const dx = vanishingPoint.x - cube.x;
+  const dy = vanishingPoint.y - cube.y;
+  const distance = Math.hypot(dx, dy) || 1;
+
+  // Horizontal offset toward the vanishing point, mapped to the model's [-90, 90].
+  const rotateDegrees = Math.round(Math.max(-90, Math.min(90, (dx / distance) * 90)));
+
+  // Vertical tilt is discrete: bird's eye when the vanishing point sits above the cube.
+  const verticalAngle = Math.abs((Math.atan2(dy, Math.abs(dx) || 1) * 180) / Math.PI);
+  let verticalTilt = 0;
+  if (verticalAngle >= VERTICAL_TILT_THRESHOLD_DEG) verticalTilt = dy < 0 ? -1 : 1;
+
+  return { rotateDegrees, verticalTilt };
+}
