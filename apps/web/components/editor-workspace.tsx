@@ -2,11 +2,13 @@
 
 import { Authenticated, AuthLoading } from "convex/react";
 import { AlertTriangle, Check, Loader2, Lock, RefreshCw, ScanLine } from "lucide-react";
+import { useState } from "react";
 
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BrandMark } from "@/components/brand-mark";
 import { ImageDropzone } from "@/components/image-dropzone";
 import { PerspectiveWorkspace } from "@/components/perspective-workspace";
+import { TextWorkspace } from "@/components/text-workspace";
 import { Button } from "@/components/ui/button";
 import { useDepthJob } from "@/hooks/use-depth-job";
 import { type UploadedImage, useImageUpload } from "@/hooks/use-image-upload";
@@ -27,10 +29,13 @@ export function EditorWorkspace() {
   );
 }
 
+type WorkspaceTab = "perspective" | "text";
+
 function EditorSurface() {
   const scene = useImageUpload("scene");
   const product = useImageUpload("object");
   const depth = useDepthJob();
+  const [tab, setTab] = useState<WorkspaceTab>("perspective");
 
   const hasScene = scene.image !== null;
   const hasProduct = product.image !== null;
@@ -167,7 +172,21 @@ function EditorSurface() {
         <section className="technical-grid flex min-h-120 flex-1 flex-col items-center justify-center gap-4 p-3 md:p-8">
           {depth.error ? <ErrorNote message={depth.error} /> : null}
           {isCompleted && depth.job ? (
-            <PerspectiveWorkspace job={depth.job} />
+            <div className="w-full">
+              <div className="flex items-center gap-1 border border-b-0 border-foreground/50 bg-background px-2 py-2">
+                <TabButton active={tab === "perspective"} onClick={() => setTab("perspective")}>
+                  Perspectiva
+                </TabButton>
+                <TabButton active={tab === "text"} onClick={() => setTab("text")}>
+                  Texto
+                </TabButton>
+              </div>
+              {tab === "perspective" ? (
+                <PerspectiveWorkspace job={depth.job} />
+              ) : (
+                <TextWorkspace job={depth.job} />
+              )}
+            </div>
           ) : (
             <div className="grid w-full max-w-6xl gap-4 lg:grid-cols-2">
               <UploadSlot
@@ -192,6 +211,30 @@ function EditorSurface() {
         </section>
       </div>
     </>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "min-h-8 px-3 font-mono text-[9px] uppercase tracking-wider text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active && "bg-foreground text-background hover:text-background",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
