@@ -8,6 +8,11 @@
     "deploy": "convex deploy"
   },
   "dependencies": {
-    "convex": "1.45.0"
+    "@t3-oss/env-core": "^0.13.11",
+    "convex": "1.45.0",
+    "zod": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0"
   }
 }

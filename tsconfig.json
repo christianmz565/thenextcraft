@@ -10,7 +10,8 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "strict": true
+    "strict": true,
+    "types": ["node"]
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
   "exclude": [
