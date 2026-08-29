@@ -1,7 +1,11 @@
 export default {
   providers: [
     {
-      domain: process.env.CONVEX_SITE_URL,
+      domain:
+        process.env.CONVEX_SITE_URL ||
+        process.env.CONVEX_SITE_ORIGIN ||
+        process.env.SITE_URL ||
+        "http://127.0.0.1:3211",
       applicationID: "convex",
     },
   ],
