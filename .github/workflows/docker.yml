@@ -94,7 +94,6 @@ jobs:
           build-args: |
             BUN_VERSION=1.3.13
             NODE_ENV=production
-            NEXT_PUBLIC_CONVEX_URL=http://thenextcraft-backend:3210
 
       - name: Attest provenance
         uses: actions/attest-build-provenance@v3
