@@ -10,7 +10,7 @@ services:
     stop_grace_period: 10s
     stop_signal: SIGINT
     ports:
-      - "${PORT:-3210}:3210"
+      - "${CONVEX_PORT:-3210}:3210"
       - "${SITE_PROXY_PORT:-3211}:3211"
     volumes:
       - data:/convex/data

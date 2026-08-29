@@ -38,7 +38,8 @@ docker compose --env-file .env.dev -f docker-compose.dev.yml ps
 Generate the self-hosted admin key required by the frontend:
 
 ```bash
-docker compose --env-file .env.dev -f docker-compose.dev.yml exec backend ./generate_admin_key.sh
+bun run convex:admin-key
+# or directly: ./scripts/generate-admin-key.sh
 ```
 
 ### 4. Configure Frontend Environment (`apps/web/.env.local`)
