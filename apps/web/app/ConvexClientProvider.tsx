@@ -4,9 +4,9 @@ import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 
 const convexUrl =
-  process.env["NEXT_PUBLIC_CONVEX_URL"] ||
-  process.env["CONVEX_SELF_HOSTED_URL"] ||
-  process.env["CONVEX_URL"] ||
+  process.env.NEXT_PUBLIC_CONVEX_URL ||
+  process.env.CONVEX_SELF_HOSTED_URL ||
+  process.env.CONVEX_URL ||
   "http://thenextcraft-backend:3210";
 
 const convex = new ConvexReactClient(convexUrl);
