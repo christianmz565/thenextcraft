@@ -1,7 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 
-import "./globals.css";
-import { ConvexClientProvider } from "./ConvexClientProvider";
+import "@/app/globals.css";
+import { ConvexClientProvider } from "@/app/ConvexClientProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 

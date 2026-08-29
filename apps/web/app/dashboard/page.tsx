@@ -1,10 +1,7 @@
 "use client";
 
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
-import { useQuery } from "convex/react";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- self-hosted monorepo cross-package import; file is outside web include
-// @ts-ignore -- generated api outside web include, resolved at runtime via bundler
-import { api } from "../../../../packages/backend/convex/_generated/api.js";
+import { api } from "backend/convex/_generated/api.js";
+import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 
 export default function DashboardPage() {
@@ -25,7 +22,11 @@ export default function DashboardPage() {
             <p>Signed in as {user.email ?? user.name ?? user._id}</p>
             {user.image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.image} alt={user.name ?? "avatar"} className="mt-2 size-10 rounded-full" />
+              <img
+                src={user.image}
+                alt={user.name ?? "avatar"}
+                className="mt-2 size-10 rounded-full"
+              />
             ) : null}
           </div>
         ) : (

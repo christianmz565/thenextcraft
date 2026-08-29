@@ -14,8 +14,10 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "lint:write": "biome lint --write .",
-    "convex:dev": "bun --filter backend convex dev",
-    "convex:codegen": "bun --filter backend convex codegen"
+    "convex:dev": "bun --env-file=.env.dev --filter backend convex dev",
+    "convex:codegen": "bun --env-file=.env.dev --filter backend convex codegen",
+    "dev:web": "bun --env-file=.env.dev --filter web dev",
+    "dev": "bun --env-file=.env.dev --filter web dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.11",

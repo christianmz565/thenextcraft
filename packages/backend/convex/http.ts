@@ -1,5 +1,5 @@
+import { auth } from "@backend/convex/auth";
 import { httpRouter } from "convex/server";
-import { auth } from "./auth";
 
 const http = httpRouter();
 

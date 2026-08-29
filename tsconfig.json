@@ -4,6 +4,14 @@
     "target": "esnext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["apps/web/*"],
+      "@web/*": ["apps/web/*"],
+      "@backend/*": ["packages/backend/*"]
+    },
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
@@ -14,14 +22,13 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+  "include": ["apps/**/*", "packages/**/*"],
   "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    ".next",
-    "apps/web/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
     "**/convex/_generated/**",
-    "**/node_modules/**"
+    "**/_generated/**"
   ]
 }

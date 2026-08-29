@@ -2,6 +2,11 @@
   "name": "backend",
   "type": "module",
   "version": "0.0.0",
+  "exports": {
+    "./convex/*": "./convex/*",
+    "./env": "./env.ts",
+    "./*": "./*"
+  },
   "scripts": {
     "codegen": "convex codegen",
     "dev": "convex dev",

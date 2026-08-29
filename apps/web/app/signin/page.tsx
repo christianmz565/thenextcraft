@@ -16,7 +16,9 @@ export default function SignInPage() {
         </AuthLoading>
         <Unauthenticated>
           <h1 className="text-xl font-medium">Sign in</h1>
-          <p className="text-sm text-muted-foreground">Continue with Google to access your dashboard.</p>
+          <p className="text-sm text-muted-foreground">
+            Continue with Google to access your dashboard.
+          </p>
           <Button onClick={() => void signIn("google")} className="mt-2">
             Sign in with Google
           </Button>
