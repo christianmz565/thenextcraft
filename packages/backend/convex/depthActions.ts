@@ -3,7 +3,7 @@
 import { internal } from "@backend/convex/_generated/api";
 import type { Id } from "@backend/convex/_generated/dataModel";
 import { internalAction } from "@backend/convex/_generated/server";
-import { getOutputUrl, storeFromUrl } from "@backend/convex/lib/replicate";
+import { blobFromStorage, getOutputUrl, storeFromUrl } from "@backend/convex/lib/replicate";
 import { v } from "convex/values";
 import Replicate from "replicate";
 
@@ -28,12 +28,7 @@ export const processDepthMap = internalAction({
 
       await ctx.runMutation(internal.depth.markProcessing, { id: args.id });
 
-      const sceneUrl = await ctx.storage.getUrl(args.sceneStorageId);
-      if (!sceneUrl) throw new Error("Scene image URL not found");
-
-      const sceneResponse = await fetch(sceneUrl);
-      if (!sceneResponse.ok) throw new Error("Could not download scene image");
-      const sceneBlob = await sceneResponse.blob();
+      const sceneBlob = await blobFromStorage(ctx, args.sceneStorageId, "Scene image");
 
       const replicate = new Replicate({ auth: apiKey, useFileOutput: false });
       const output = (await replicate.run(modelVersion, {
