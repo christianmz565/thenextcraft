@@ -23,9 +23,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,id=bun-install,sharing=lo
     bun install --frozen-lockfile --ignore-scripts
 
 FROM base AS builder
-ARG NEXT_PUBLIC_CONVEX_URL=http://thenextcraft-backend:3210
-ENV NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL} \
-    SKIP_ENV_VALIDATION=1
+ENV SKIP_ENV_VALIDATION=1
 WORKDIR /app
 COPY --from=deps --link /app/node_modules ./node_modules
 COPY --from=deps --link /app/bun.lock ./bun.lock
