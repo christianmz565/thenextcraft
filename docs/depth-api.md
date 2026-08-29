@@ -1,7 +1,7 @@
-# API de profundidad — guía para el frontend
+# API de profundidad y perspectivas — guía para el frontend
 
-Todo lo necesario para subir imágenes, generar el mapa de profundidad y componer
-el producto sobre el fondo.
+Todo lo necesario para subir imágenes, generar el mapa de profundidad, componer
+el producto sobre el fondo y re-generarlo desde otro ángulo.
 
 **Reparto de responsabilidades:** el backend estima la profundidad de la escena y
 sirve las imágenes. El **posicionamiento y el escalado del producto son del
@@ -272,7 +272,96 @@ recupera con el id.
 
 ---
 
-## 8. Correr todo
+## 8. Servicio de perspectivas (`api.angles`)
+
+Re-genera la foto del producto desde otro ángulo de cámara. Encadena **dos**
+modelos, porque el primero no preserva la transparencia:
+
+1. `qwen/qwen-edit-multiangle` — rota el producto, pero le pinta **su propio fondo
+   de estudio**.
+2. `851-labs/background-remover` — le devuelve un canal alpha real (`rgba`, `png`).
+
+Ambas versiones están pineadas en [`angles.ts`](../packages/backend/convex/angles.ts)
+para que una actualización del modelo no cambie resultados en silencio.
+
+### `enqueue` — mutation
+
+```ts
+({
+  sourceStorageId: Id<"_storage">,
+  rotateDegrees: number,
+  verticalTilt?: number,
+}) => Promise<Id<"productAngles">>
+```
+
+Encola y devuelve al instante, igual que `depth.enqueue`. El `sourceStorageId`
+tiene que estar registrado como `kind: "object"` (ver `registerUpload`).
+
+**No hace falta validar los rangos en el cliente** — el backend recorta:
+
+| Argumento | Rango del modelo | Significado |
+|---|---|---|
+| `rotateDegrees` | entero `[-90, 90]` | giro horizontal (del `rotY` del panel) |
+| `verticalTilt` | entero `[-1, 0, 1]` | `-1` vista de pájaro · `0` nivel · `1` vista de gusano |
+
+`verticalTilt` es **discreto, no un ángulo**. El prototipo lo deriva del signo de
+`rotX` con un umbral de 20° (`VERTICAL_TILT_THRESHOLD_DEG`) para que una
+inclinación mínima no dispare un tilt. `rotZ` **no tiene equivalente en el modelo
+y no se manda**: sigue aplicando solo a la vista previa 3D local.
+
+### `get` / `list` — queries
+
+```ts
+get({ id: Id<"productAngles"> }) => HydratedProductAngle
+list({}) => HydratedProductAngle[]
+```
+
+```ts
+type HydratedProductAngle = Doc<"productAngles"> & {
+  sourceUrl: string | null;
+  resultUrl: string | null;   // null hasta que status === "completed"
+};
+```
+
+Mismos estados que profundidad (`pending` → `processing` → `completed` / `failed`)
+y el mismo polling reactivo: `useQuery(api.angles.get, id ? { id } : "skip")`.
+
+### `remove` — mutation
+
+Borra el job y su imagen. La conserva si un job posterior la usó como fuente
+(cadena), y de paso limpia su registro en `userFiles`.
+
+### Encadenar ángulos
+
+Al completarse, el resultado se registra **solo** en `userFiles` como
+`kind: "object"`. Eso es lo que lo habilita para dos cosas, sin volver a subir nada:
+
+```ts
+// seguir rotando desde la imagen ya generada
+await angles.enqueue({ sourceStorageId: job.resultStorageId, rotateDegrees: 30 });
+
+// o usarla como producto de una composición
+await depth.enqueue({ objectStorageId: job.resultStorageId, sceneStorageId });
+```
+
+**Al recibir el resultado, reseteá la rotación manual a 0**: la imagen nueva ya
+*es* esa perspectiva, seguir aplicándole el giro del panel la duplicaría.
+
+### Cosas que muerden acá
+
+- **Cada generación son 2 llamadas reales a Replicate (~25-45s) y cuestan.** No hay
+  caché ni debounce — a diferencia de `depth.enqueue`, que sí reutiliza el mapa de
+  una escena ya procesada. Deshabilitá el botón mientras `status` no sea final.
+- El `output_format` de qwen **viene en `webp` por default**; se fija en `png` del
+  lado del backend, así que el `resultUrl` siempre es PNG.
+- La remoción de fondo puede dejar **restos tenues de sombra o reflejo** del fondo
+  de estudio. Es limitación del modelo de segmentación, no un bug del pipeline.
+- El primer modelo devuelve un **array** de URIs y el segundo un string suelto; el
+  backend ya normaliza ambos, pero tenelo en cuenta si tocás esa parte.
+
+---
+
+## 9. Correr todo
 
 ```bash
 docker compose --env-file .env.dev -f docker-compose.dev.yml up -d

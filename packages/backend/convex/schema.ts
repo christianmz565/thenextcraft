@@ -40,6 +40,27 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_scene", ["userId", "sceneStorageId"]),
+  // Product photos re-rendered from a different camera angle. `sourceStorageId` may
+  // itself be a previous result, which is how angles get chained.
+  productAngles: defineTable({
+    userId: v.id("users"),
+    sourceStorageId: v.id("_storage"),
+    resultStorageId: v.optional(v.id("_storage")),
+    rotateDegrees: v.number(),
+    verticalTilt: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    modelVersions: v.string(),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_source", ["userId", "sourceStorageId"]),
   userFiles: defineTable({
     userId: v.id("users"),
     storageId: v.id("_storage"),
