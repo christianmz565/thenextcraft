@@ -66,6 +66,27 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_source", ["userId", "sourceStorageId"]),
+  // Foreground subject extracted from a photo with an alpha channel. The layer that
+  // makes "text behind subject" possible: background at the back, text in the middle,
+  // this cutout on top.
+  subjectCutouts: defineTable({
+    userId: v.id("users"),
+    sourceStorageId: v.id("_storage"),
+    resultStorageId: v.optional(v.id("_storage")),
+    threshold: v.optional(v.number()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    modelVersions: v.string(),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_source", ["userId", "sourceStorageId"]),
   userFiles: defineTable({
     userId: v.id("users"),
     storageId: v.id("_storage"),
