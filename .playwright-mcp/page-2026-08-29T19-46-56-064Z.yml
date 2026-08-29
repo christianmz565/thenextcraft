@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - link "The Next Craft, inicio" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e10]: THE NEXT CRAFT
+      - generic [ref=e11]:
+        - paragraph [ref=e12]: Acceso al estudio
+        - heading "Toda escena comienza con una decisión." [level=1] [ref=e13]
+      - generic [ref=e14]:
+        - generic [ref=e15]: Profundidad
+        - generic [ref=e16]: Perspectiva
+        - generic [ref=e17]: Composición
+    - generic [ref=e21]:
+      - button "Inicio" [ref=e23] [cursor=pointer]
+      - generic [ref=e24]:
+        - paragraph [ref=e25]: The Next Craft / Cuenta
+        - paragraph [ref=e27]: Preparando tu espacio de trabajo…
+      - paragraph [ref=e28]: Sesión cifrada · Infraestructura self-hosted
+  - button "Open Next.js Dev Tools" [ref=e34] [cursor=pointer]

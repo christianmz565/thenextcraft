@@ -1,0 +1,14 @@
+- generic [active] [ref=f2e1]:
+  - main [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - link "The Next Craft, inicio" [ref=f2e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f2e12]: THE NEXT CRAFT
+        - button "Inicio" [ref=f2e13] [cursor=pointer]
+      - generic [ref=f2e14]:
+        - paragraph [ref=f2e15]: The Next Craft / Cuenta
+        - paragraph [ref=f2e17]: Preparando tu espacio de trabajo…
+      - paragraph [ref=f2e18]: Sesión cifrada · Infraestructura self-hosted
+  - button "Open Next.js Dev Tools" [ref=f2e24] [cursor=pointer]
+  - alert [ref=f2e28]

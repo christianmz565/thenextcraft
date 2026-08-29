@@ -53,9 +53,15 @@ if (!jwtPrivateKey || !jwks) {
   }
 }
 
+const webEnvLocalPath = path.join(rootDir, "apps/web/.env.local");
+const webEnvContent = fs.existsSync(webEnvLocalPath)
+  ? fs.readFileSync(webEnvLocalPath, "utf8")
+  : "";
+
 let adminKey =
   process.env.CONVEX_SELF_HOSTED_ADMIN_KEY ||
-  getEnvVar(envDevContent, "CONVEX_SELF_HOSTED_ADMIN_KEY");
+  getEnvVar(envDevContent, "CONVEX_SELF_HOSTED_ADMIN_KEY") ||
+  getEnvVar(webEnvContent, "CONVEX_SELF_HOSTED_ADMIN_KEY");
 
 if (!adminKey) {
   try {
@@ -76,9 +82,18 @@ if (!adminKey) {
   process.exit(1);
 }
 
-console.log(`Using Convex Admin Key: ${adminKey}`);
+if (envDevContent.includes("CONVEX_SELF_HOSTED_ADMIN_KEY=")) {
+  envDevContent = envDevContent.replace(
+    /^CONVEX_SELF_HOSTED_ADMIN_KEY=.*/m,
+    `CONVEX_SELF_HOSTED_ADMIN_KEY="${adminKey}"`,
+  );
+} else {
+  envDevContent += `\nCONVEX_SELF_HOSTED_ADMIN_KEY="${adminKey}"\n`;
+}
+fs.writeFileSync(envDevPath, envDevContent);
 
-const webEnvLocalPath = path.join(rootDir, "apps/web/.env.local");
+console.log("Using Convex Admin Key from local environment.");
+
 if (fs.existsSync(webEnvLocalPath)) {
   let webEnvContent = fs.readFileSync(webEnvLocalPath, "utf8");
   if (webEnvContent.includes("CONVEX_SELF_HOSTED_ADMIN_KEY=")) {

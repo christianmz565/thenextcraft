@@ -8,7 +8,7 @@
     "./*": "./*"
   },
   "scripts": {
-    "codegen": "convex codegen",
+    "codegen": "convex dev --once",
     "dev": "convex dev",
     "deploy": "convex deploy"
   },
