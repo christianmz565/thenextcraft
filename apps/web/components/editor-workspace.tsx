@@ -5,8 +5,8 @@ import { AlertTriangle, Check, Loader2, Lock, RefreshCw, ScanLine } from "lucide
 
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BrandMark } from "@/components/brand-mark";
-import { DepthResult } from "@/components/depth-result";
 import { ImageDropzone } from "@/components/image-dropzone";
+import { PerspectiveWorkspace } from "@/components/perspective-workspace";
 import { Button } from "@/components/ui/button";
 import { useDepthJob } from "@/hooks/use-depth-job";
 import { type UploadedImage, useImageUpload } from "@/hooks/use-image-upload";
@@ -167,7 +167,7 @@ function EditorSurface() {
         <section className="technical-grid flex min-h-120 flex-1 flex-col items-center justify-center gap-4 p-3 md:p-8">
           {depth.error ? <ErrorNote message={depth.error} /> : null}
           {isCompleted && depth.job ? (
-            <DepthResult job={depth.job} />
+            <PerspectiveWorkspace job={depth.job} />
           ) : (
             <div className="grid w-full max-w-6xl gap-4 lg:grid-cols-2">
               <UploadSlot
