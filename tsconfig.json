@@ -18,6 +18,7 @@
     "dist",
     "build",
     ".next",
+    "apps/web/**",
     "**/convex/_generated/**",
     "**/node_modules/**"
   ]

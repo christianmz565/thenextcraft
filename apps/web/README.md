@@ -1,20 +1,21 @@
-# web — frontend placeholder
+# Next.js template
 
-This directory is reserved for the frontend framework.
+This is a Next.js template with shadcn/ui.
 
-> Do not `rm -rf` — init your framework here, e.g.:
+## Adding components
+
+To add components to your app, run the following command:
 
 ```bash
-# Next.js (recommended with Convex)
-bunx create-next-app@latest . --ts --eslint --tailwind --app --src-dir --import-alias "@/*"
-
-# Vite + React
-bun create vite . --template react-ts
-
-# Svelte / Nuxt / Astro — pick one and init in-place
+npx shadcn@latest add button
 ```
 
-Existing monorepo wiring:
-- Root `tsconfig.json` is strict and referenced (`references: ./apps/web`)
-- Root `biome.json` covers this folder (formatter + linter + organizeImports)
-- Run `bun run typecheck` from root to type-check the whole workspace
+This will place the ui components in the `components` directory.
+
+## Using components
+
+To use the components in your app, import them as follows:
+
+```tsx
+import { Button } from "@/components/ui/button";
+```

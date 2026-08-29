@@ -1,0 +1,67 @@
+# VCS
+.git
+.gitignore
+.github
+
+# Node / Bun
+node_modules
+npm-debug.log*
+bun-debug.log*
+.pnp
+.pnp.js
+**/node_modules
+**/.bun
+
+# Build outputs
+dist
+build
+.next
+out
+.turbo
+.cache
+.parcel-cache
+coverage
+*.tsbuildinfo
+.eslintcache
+.biome
+
+# Convex generated
+convex/_generated
+packages/backend/convex/_generated
+**/_generated
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+.env.*.development.local
+.env.*.test.local
+.env.production.local
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.log
+*.swp
+*.swo
+*~
+
+# Nix / direnv
+.direnv
+flake.nix
+flake.lock
+.envrc
+
+# Docker / CI
+Dockerfile
+docker-compose*
+.dockerignore
+
+# Docs & misc
+README.md
+CONTRIBUTING.md
+docs

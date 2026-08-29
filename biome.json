@@ -48,5 +48,10 @@
     "actions": {
       "preset": "recommended"
     }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   }
 }

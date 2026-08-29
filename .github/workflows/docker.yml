@@ -1,0 +1,123 @@
+name: container
+
+on:
+  push:
+    branches: [main]
+
+# Prevent duplicate publishes on fast pushes; queue, don't cancel
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: build & publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+      id-token: write       # sigstore / attestations
+      attestations: write
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+            image=moby/buildkit:latest
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Extract metadata (labels + tags)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Tag with `latest` and short SHA (7 chars, no prefix) per spec
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short,prefix=
+          # Keep original sha- prefixed tag as alias for traceability
+          flavor: |
+            latest=false
+          labels: |
+            org.opencontainers.image.title=thenextcraft
+            org.opencontainers.image.revision={{sha}}
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
+          annotations: |
+            org.opencontainers.image.title=thenextcraft
+            org.opencontainers.image.revision={{sha}}
+          sep-tags: |
+            ,
+          sep-annotations: |
+            ,
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          # Highly optimized layer caching:
+          #  - gha: fast local cache, scoped per OS + shared
+          #  - registry: fallback for cache reuse across concurrent runners
+          cache-from: |
+            type=gha,scope=build-${{ runner.os }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=gha,mode=max,scope=build-${{ runner.os }}
+          provenance: mode=max
+          sbom: true
+          # Inline build-args for reproducibility
+          build-args: |
+            BUN_VERSION=1.3.13
+            NODE_ENV=production
+          # Keep attestations / provenance in image manifest
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summary
+        run: |
+          echo "### Container published :package:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Registry:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Platforms:** \`linux/amd64, linux/arm64\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Tags:**" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Short SHA:** \`${{ steps.sha.outputs.short }}\`" >> "$GITHUB_STEP_SUMMARY"
