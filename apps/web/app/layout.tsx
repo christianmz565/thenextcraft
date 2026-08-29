@@ -18,7 +18,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const convexUrl = process.env["NEXT_PUBLIC_CONVEX_URL"] || process.env.CONVEX_SELF_HOSTED_URL;
+  const convexUrl =
+    process.env.CONVEX_PUBLIC_URL ||
+    process.env["NEXT_PUBLIC_CONVEX_URL"];
 
   return (
     <html
