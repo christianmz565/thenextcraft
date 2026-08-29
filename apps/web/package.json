@@ -1,0 +1,11 @@
+{
+  "name": "web",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "echo 'frontend not initialized yet — run your framework init inside apps/web' && exit 0",
+    "build": "echo 'frontend not initialized yet' && exit 0",
+    "typecheck": "tsc --noEmit"
+  }
+}
