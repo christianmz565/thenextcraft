@@ -3,8 +3,6 @@
  * to the scene so they survive canvas resizes and scale cleanly on export.
  */
 
-export type TextFont = "sans" | "serif" | "mono";
-
 export type TextLayer = {
   id: string;
   content: string;
@@ -14,7 +12,6 @@ export type TextLayer = {
   /** Font size relative to the scene height (0..1). */
   size: number;
   weight: number;
-  font: TextFont;
   color: string;
   opacity: number;
   /** Degrees, clockwise. */
@@ -25,14 +22,22 @@ export type TextLayer = {
 
 export const TEXT_COLORS = ["#ffffff", "#000000", "#f5c518", "#e63946", "#2a9d8f"];
 
-const FONT_STACKS: Record<TextFont, string> = {
-  sans: "var(--font-sans), system-ui, sans-serif",
-  serif: "Georgia, 'Times New Roman', serif",
-  mono: "var(--font-mono), ui-monospace, monospace",
-};
-
-export function fontStack(font: TextFont): string {
-  return FONT_STACKS[font];
+/**
+ * Resolves `var(--font-sans)` to the concrete font-family string it points to.
+ * The canvas 2D `font` property does NOT resolve CSS custom properties — assigning
+ * a string containing `var(...)` is silently rejected and the canvas keeps its
+ * previous font, which is what made every font choice except the accidental
+ * default fallback look broken. Read it once from the DOM (same probe-element
+ * trick as color tokens) instead of embedding the variable in the font string.
+ */
+export function resolveSansFontFamily(element: HTMLElement): string {
+  const probe = document.createElement("span");
+  probe.style.fontFamily = "var(--font-sans), system-ui, sans-serif";
+  probe.style.display = "none";
+  element.appendChild(probe);
+  const family = getComputedStyle(probe).fontFamily || "system-ui, sans-serif";
+  probe.remove();
+  return family;
 }
 
 let nextId = 0;
@@ -46,7 +51,6 @@ export function createTextLayer(partial: Partial<TextLayer> = {}): TextLayer {
     y: 0.4,
     size: 0.18,
     weight: 800,
-    font: "sans",
     color: "#ffffff",
     opacity: 1,
     rotation: 0,
@@ -64,6 +68,7 @@ export function drawTextLayer(
   layer: TextLayer,
   width: number,
   height: number,
+  fontFamily: string,
 ) {
   const fontSize = layer.size * height;
   if (fontSize < 1 || !layer.content.trim()) return;
@@ -73,7 +78,7 @@ export function drawTextLayer(
   context.rotate((layer.rotation * Math.PI) / 180);
   context.globalAlpha = layer.opacity;
   context.fillStyle = layer.color;
-  context.font = `${layer.weight} ${fontSize}px ${fontStack(layer.font)}`;
+  context.font = `${layer.weight} ${fontSize}px ${fontFamily}`;
   context.textAlign = "center";
   context.textBaseline = "middle";
   // Supported in modern Chromium/Firefox; silently ignored elsewhere.
@@ -97,10 +102,11 @@ export function textLayerBounds(
   layer: TextLayer,
   width: number,
   height: number,
+  fontFamily: string,
 ) {
   const fontSize = layer.size * height;
   context.save();
-  context.font = `${layer.weight} ${fontSize}px ${fontStack(layer.font)}`;
+  context.font = `${layer.weight} ${fontSize}px ${fontFamily}`;
   const lines = layer.content.split("\n");
   const textWidth = Math.max(...lines.map((line) => context.measureText(line).width), 1);
   context.restore();

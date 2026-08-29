@@ -4,7 +4,7 @@ import { Plus, Trash2, Type } from "lucide-react";
 import { useId } from "react";
 
 import { Button } from "@/components/ui/button";
-import { createTextLayer, TEXT_COLORS, type TextFont, type TextLayer } from "@/lib/text-layers";
+import { createTextLayer, TEXT_COLORS, type TextLayer } from "@/lib/text-layers";
 import { cn } from "@/lib/utils";
 
 /**
@@ -111,26 +111,6 @@ function LayerFields({
           className="mt-1 w-full resize-y border bg-background p-2 font-sans text-sm normal-case tracking-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </label>
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-wider">Fuente</span>
-        <div className="flex gap-1">
-          {(["sans", "serif", "mono"] as TextFont[]).map((font) => (
-            <button
-              key={font}
-              type="button"
-              onClick={() => onChange({ font })}
-              aria-pressed={layer.font === font}
-              className={cn(
-                "min-h-7 border px-2 text-[10px] uppercase",
-                layer.font === font && "border-foreground bg-foreground text-background",
-              )}
-            >
-              {font}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[10px] uppercase tracking-wider">Color</span>

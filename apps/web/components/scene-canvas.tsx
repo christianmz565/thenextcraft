@@ -20,7 +20,12 @@ import {
   toFieldPoint,
   VP_HANDLE_RADIUS,
 } from "@/lib/depth-scene";
-import { drawTextLayer, type TextLayer, textLayerBounds } from "@/lib/text-layers";
+import {
+  drawTextLayer,
+  resolveSansFontFamily,
+  type TextLayer,
+  textLayerBounds,
+} from "@/lib/text-layers";
 import { cn } from "@/lib/utils";
 
 export type Placement = { cube: Cube; scale: number };
@@ -169,10 +174,11 @@ export function SceneCanvas({
 
     const ink = readCssColor(canvas, "--foreground");
     const surface = readCssColor(canvas, "--background");
+    const fontFamily = resolveSansFontFamily(canvas);
 
     // Text sits behind the product/cube, so the inserted object reads as being in
     // front of it — same sandwich as the reference "text behind subject" effect.
-    for (const layer of textLayers) drawTextLayer(context, layer, width, height);
+    for (const layer of textLayers) drawTextLayer(context, layer, width, height, fontFamily);
 
     if (cube && showProduct && overlayImage && overlayBox) {
       drawProductSheet(context, cube, scale, rotation, overlayImage, overlayBox);
@@ -265,9 +271,10 @@ export function SceneCanvas({
     const context = canvasRef.current?.getContext("2d");
     const { width, height } = sizeRef.current;
     if (!context || !width || !height) return null;
+    const fontFamily = resolveSansFontFamily(context.canvas);
     // Topmost layer wins, mirroring paint order.
     for (let index = textLayers.length - 1; index >= 0; index -= 1) {
-      const bounds = textLayerBounds(context, textLayers[index], width, height);
+      const bounds = textLayerBounds(context, textLayers[index], width, height, fontFamily);
       if (
         point.x >= bounds.left &&
         point.x <= bounds.right &&
@@ -390,7 +397,13 @@ function drawTextSelection(
   height: number,
   ink: Ink,
 ) {
-  const bounds = textLayerBounds(context, layer, width, height);
+  const bounds = textLayerBounds(
+    context,
+    layer,
+    width,
+    height,
+    resolveSansFontFamily(context.canvas),
+  );
   context.save();
   context.strokeStyle = withAlpha(ink, 0.9);
   context.lineWidth = 1.5;
