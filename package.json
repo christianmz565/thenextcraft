@@ -16,7 +16,7 @@
     "lint:write": "biome lint --write .",
     "convex:dev": "bun --env-file=.env.dev run --filter backend dev",
     "convex:codegen": "bun --env-file=.env.dev run --filter backend codegen",
-    "convex:admin-key": "./scripts/generate-admin-key.sh",
+    "convex:admin-key": "bun run scripts/sync-convex-env.ts",
     "dev:web": "bun --env-file=.env.dev run --filter web dev",
     "dev:backend": "bun --env-file=.env.dev run --filter backend dev",
     "dev": "concurrently \"bun run dev:backend\" \"bun run dev:web\""
