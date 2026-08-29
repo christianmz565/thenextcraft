@@ -14,7 +14,7 @@ bun run --filter backend codegen
 Config:
 - `convex.json` at repo root → `{ "functions": "packages/backend/convex" }` (monorepo layout per https://docs.convex.dev/quickstart/svelte `convex.json` pattern)
 - `schema.ts` defines tables + indexes. Edit then `convex dev` syncs schema with zero-downtime migration.
-- `_generated/` is gitignored — never hand-edit, run `convex codegen` instead.
+- `_generated/` is committed to git — never hand-edit, generated automatically during dev or with `bun run convex:codegen`.
 
 ## Auth — Convex Auth + Google OAuth
 
