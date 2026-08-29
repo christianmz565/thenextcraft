@@ -9,6 +9,8 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as depth from "../depth.js";
+import type * as depthActions from "../depthActions.js";
 import type * as env from "../env.js";
 import type * as http from "../http.js";
 import type * as tasks from "../tasks.js";
@@ -22,6 +24,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  depth: typeof depth;
+  depthActions: typeof depthActions;
   env: typeof env;
   http: typeof http;
   tasks: typeof tasks;

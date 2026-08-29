@@ -62,3 +62,59 @@ If you self-host Convex (see `https://github.com/get-convex/convex-backend` self
 - **Convex Auth env setup:** Set `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `SITE_URL`, `JWT_PRIVATE_KEY`, and `JWKS` in the self-hosted Convex backend via `bun run convex:admin-key` (or `convex env set <KEY> --url http://127.0.0.1:3210 --admin-key <admin-key>`). Setting process/container environment variables in `docker-compose.yml` does not inject them into the V8 function runtime where Convex Auth executes.
 - **OAuth redirect URI:** For self-hosted, authorized redirect becomes `http://<your-backend-host>:3211/api/auth/callback/google` (or `https://<your-domain>/api/auth/callback/google` if behind a proxy) instead of `https://<deployment>.convex.site/api/auth/callback/google`. Update the Google Cloud OAuth Client accordingly and ensure `SITE_URL` matches your frontend origin.
 - **Reference:** Self-hosted guide in repo attachment / https://github.com/get-convex/convex-backend/blob/main/self-hosted/docker/docker-compose.yml and `advanced/` docs for Postgres/MySQL and S3 storage.
+
+## Depth estimation API
+
+The first image is the product and the second image is the scene. Both files are uploaded to Convex Storage, but only the scene is sent to Depth Anything V2. All functions below require an authenticated user; the Replicate key is never exposed to the frontend.
+
+### Environment
+
+Add the key to `.env.dev`:
+
+```env
+REPLICATE_API_KEY="r8_..."
+```
+
+Because self-hosted Convex executes functions from its deployment store, sync it after starting the backend:
+
+```bash
+bun run convex:admin-key
+```
+
+The sync script now copies `REPLICATE_API_KEY` from `.env.dev` into the Convex function environment. Do not put this key in `apps/web/.env.local`.
+
+### Frontend contract
+
+1. Call `api.depth.generateUploadUrl` for the product and call it again for the scene.
+2. `POST` each file to its returned URL with the image bytes and `Content-Type`.
+3. Register each returned storage ID with `api.depth.registerUpload`, using `kind: "object"` and `kind: "scene"` respectively.
+4. Call `api.depthActions.generateDepthMap`:
+
+```ts
+const result = await convex.action(api.depthActions.generateDepthMap, {
+  objectStorageId,
+  sceneStorageId,
+});
+```
+
+The action returns:
+
+```ts
+{
+  id: Id<"depthMaps">,
+  status: "completed",
+  modelVersion: string,
+  depthStorageId: Id<"_storage">,
+  depthUrl: string | null,
+}
+```
+
+`depthUrl` is the persisted `grey_depth` file copied into Convex Storage. The product storage ID is retained in the `depthMaps` record for the later composition phases.
+
+### Queries
+
+- `api.depth.get({ id })`: returns one user-owned job and its current `depthUrl`.
+- `api.depth.list({})`: returns the authenticated user's depth jobs ordered newest first.
+- `api.depth.registerUpload({ storageId, kind })`: binds a completed Storage upload to the authenticated user.
+
+Possible job states are `processing`, `completed`, and `failed`. Errors are returned by the action and also stored in the job's `error` field. The current implementation waits for Replicate synchronously; it can later be changed to a prediction/webhook job without changing the storage contract.
