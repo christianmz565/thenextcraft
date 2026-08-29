@@ -102,6 +102,8 @@ const googleClientSecret =
   getEnvVar(envDevContent, "GOOGLE_SECRET") ||
   process.env.AUTH_GOOGLE_SECRET ||
   "";
+const replicateApiKey =
+  getEnvVar(envDevContent, "REPLICATE_API_KEY") || process.env.REPLICATE_API_KEY || "";
 const siteUrl =
   getEnvVar(envDevContent, "SITE_URL") || process.env.SITE_URL || "http://localhost:3000";
 const convexUrl =
@@ -131,6 +133,7 @@ function setConvexEnv(key: string, value: string) {
 setConvexEnv("AUTH_GOOGLE_ID", googleClientId);
 setConvexEnv("AUTH_GOOGLE_SECRET", googleClientSecret);
 setConvexEnv("SITE_URL", siteUrl);
+setConvexEnv("REPLICATE_API_KEY", replicateApiKey);
 setConvexEnv("JWT_PRIVATE_KEY", jwtPrivateKey);
 setConvexEnv("JWKS", jwks);
 
