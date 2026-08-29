@@ -291,6 +291,10 @@ para que una actualización del modelo no cambie resultados en silencio.
   sourceStorageId: Id<"_storage">,
   rotateDegrees: number,
   verticalTilt?: number,
+  moveForward?: number,
+  useWideAngle?: boolean,
+  prompt?: string,
+  seed?: number,
 }) => Promise<Id<"productAngles">>
 ```
 
@@ -303,6 +307,21 @@ tiene que estar registrado como `kind: "object"` (ver `registerUpload`).
 |---|---|---|
 | `rotateDegrees` | entero `[-90, 90]` | giro horizontal (del `rotY` del panel) |
 | `verticalTilt` | entero `[-1, 0, 1]` | `-1` vista de pájaro · `0` nivel · `1` vista de gusano |
+| `moveForward` | entero `[0, 10]` | acercar la cámara (dolly), `0` = sin cambio |
+| `useWideAngle` | booleano | lente gran angular |
+| `prompt` | texto libre | descripción adicional del encuadre buscado |
+| `seed` | entero | misma seed + mismos parámetros = mismo resultado |
+
+Los cuatro últimos son opcionales y **solo se le mandan al modelo si los pasás**:
+omitirlos deja los defaults del modelo, no `undefined`. El prototipo de
+`temp/scale` solo cableaba los dos primeros porque su panel tenía tres sliders;
+el modelo acepta el resto. Todo queda persistido en el job, así que una corrida
+se puede auditar o repetir.
+
+> Los dos ángulos son lo que el LoRA (`dx8152/Qwen-Edit-2509-Multiple-angles`)
+> tiene entrenado, y están validados contra la API real. `prompt`,
+> `move_forward`, `use_wide_angle` y `seed` salen del schema verificado del
+> modelo, pero **no se probaron en una corrida real** — cada prueba cuesta.
 
 `verticalTilt` es **discreto, no un ángulo**. El prototipo lo deriva del signo de
 `rotX` con un umbral de 20° (`VERTICAL_TILT_THRESHOLD_DEG`) para que una
@@ -339,6 +358,16 @@ Al completarse, el resultado se registra **solo** en `userFiles` como
 ```ts
 // seguir rotando desde la imagen ya generada
 await angles.enqueue({ sourceStorageId: job.resultStorageId, rotateDegrees: 30 });
+
+// o pedir un encuadre personalizado
+await angles.enqueue({
+  sourceStorageId: job.resultStorageId,
+  rotateDegrees: -45,
+  verticalTilt: -1,        // vista de pájaro
+  moveForward: 4,          // más cerca
+  useWideAngle: true,
+  seed: 1234,              // para poder repetirlo exacto
+});
 
 // o usarla como producto de una composición
 await depth.enqueue({ objectStorageId: job.resultStorageId, sceneStorageId });

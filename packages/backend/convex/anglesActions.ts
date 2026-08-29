@@ -20,6 +20,10 @@ export const processAngle = internalAction({
     sourceStorageId: v.id("_storage"),
     rotateDegrees: v.number(),
     verticalTilt: v.number(),
+    moveForward: v.optional(v.number()),
+    useWideAngle: v.optional(v.boolean()),
+    prompt: v.optional(v.string()),
+    seed: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<void> => {
     try {
@@ -33,6 +37,8 @@ export const processAngle = internalAction({
 
       // output_format defaults to "webp" on this model; pinning png keeps the chain
       // in one format instead of guessing the content-type of the download later.
+      // Only send the optional knobs that were actually set, so the model keeps its
+      // own defaults for the rest instead of receiving undefined.
       const rotated = await replicate.run(MODEL_ROTATE, {
         input: {
           image: sourceBlob,
@@ -40,6 +46,10 @@ export const processAngle = internalAction({
           rotate_degrees: args.rotateDegrees,
           vertical_tilt: args.verticalTilt,
           output_format: "png",
+          ...(args.moveForward !== undefined && { move_forward: args.moveForward }),
+          ...(args.useWideAngle !== undefined && { use_wide_angle: args.useWideAngle }),
+          ...(args.prompt !== undefined && { prompt: args.prompt }),
+          ...(args.seed !== undefined && { seed: args.seed }),
         },
       });
 

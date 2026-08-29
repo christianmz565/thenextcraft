@@ -44,6 +44,10 @@ export const enqueue = mutation({
     sourceStorageId: v.id("_storage"),
     rotateDegrees: v.number(),
     verticalTilt: v.optional(v.number()),
+    moveForward: v.optional(v.number()),
+    useWideAngle: v.optional(v.boolean()),
+    prompt: v.optional(v.string()),
+    seed: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<Id<"productAngles">> => {
     const userId = await getAuthUserId(ctx);
@@ -71,11 +75,25 @@ export const enqueue = mutation({
       ? Math.max(-1, Math.min(1, Math.round(args.verticalTilt as number)))
       : 0;
 
+    const moveForward =
+      args.moveForward === undefined
+        ? undefined
+        : Math.max(0, Math.min(10, Math.round(args.moveForward)));
+    const prompt = args.prompt?.trim() || undefined;
+
+    const settings = {
+      rotateDegrees,
+      verticalTilt,
+      moveForward,
+      useWideAngle: args.useWideAngle,
+      prompt,
+      seed: args.seed === undefined ? undefined : Math.round(args.seed),
+    };
+
     const jobId = await ctx.db.insert("productAngles", {
       userId,
       sourceStorageId: args.sourceStorageId,
-      rotateDegrees,
-      verticalTilt,
+      ...settings,
       status: "pending",
       modelVersions,
       createdAt: Date.now(),
@@ -84,8 +102,7 @@ export const enqueue = mutation({
     await ctx.scheduler.runAfter(0, internal.anglesActions.processAngle, {
       id: jobId,
       sourceStorageId: args.sourceStorageId,
-      rotateDegrees,
-      verticalTilt,
+      ...settings,
     });
 
     return jobId;

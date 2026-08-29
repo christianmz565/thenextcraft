@@ -48,6 +48,11 @@ export default defineSchema({
     resultStorageId: v.optional(v.id("_storage")),
     rotateDegrees: v.number(),
     verticalTilt: v.number(),
+    // Optional framing controls. Persisted so a run can be inspected or repeated.
+    moveForward: v.optional(v.number()),
+    useWideAngle: v.optional(v.boolean()),
+    prompt: v.optional(v.string()),
+    seed: v.optional(v.number()),
     status: v.union(
       v.literal("pending"),
       v.literal("processing"),
