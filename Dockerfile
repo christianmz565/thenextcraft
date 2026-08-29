@@ -48,11 +48,25 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
+# K8s sync deps: psql + kubectl + generate_key (so Job can run `bun scripts/k8s-convex-sync.ts` without clone/install)
+USER root
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends postgresql-client openssl \
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/$(dpkg --print-architecture)/kubectl" \
+    && chmod +x kubectl && mv kubectl /usr/local/bin/ \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=ghcr.io/get-convex/convex-backend:latest /convex/generate_key /usr/local/bin/generate_key
+RUN chmod +x /usr/local/bin/generate_key
+
 COPY --from=builder --link /app/apps/web/.next/standalone ./
 COPY --from=builder --link /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --link /app/apps/web/public ./apps/web/public
 
 COPY --from=builder --link /app/packages ./packages
+COPY --from=builder --link /app/scripts ./scripts
+COPY --from=builder --link /app/node_modules ./node_modules
+COPY --from=builder --link /app/package.json ./package.json
+COPY --from=builder --link /app/bun.lock ./bun.lock
 
 USER bun
 EXPOSE 3000
