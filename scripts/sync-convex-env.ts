@@ -162,6 +162,11 @@ if (!jwtPrivateKey || !jwks) {
   process.exit(1);
 }
 const convexSiteUrl = resolveEnv("CONVEX_SITE_URL");
+const replicateApiKey = resolveEnv("REPLICATE_API_KEY");
+if (!replicateApiKey) {
+  console.error("Missing required REPLICATE_API_KEY");
+  process.exit(1);
+}
 
 async function waitForBackend(url: string, retries = 30, delayMs = 2000): Promise<boolean> {
   const versionUrl = `${url.replace(/\/$/, "")}/version`;
@@ -266,5 +271,6 @@ if (convexSiteUrl) {
 }
 setConvexEnv("JWT_PRIVATE_KEY", jwtPrivateKey);
 setConvexEnv("JWKS", jwks);
+setConvexEnv("REPLICATE_API_KEY", replicateApiKey);
 
 console.log("Convex Auth environment variables successfully synced!");
