@@ -51,19 +51,19 @@ export function ModelViewer({ className }: ModelViewerProps) {
           gl={{ antialias: true, alpha: true }}
         >
           <Suspense fallback={null}>
-            <Stage environment="city" intensity={0.55} shadows="contact" adjustCamera>
+            <Stage environment="city" intensity={0.55} shadows="contact" adjustCamera={1.4}>
               <Model />
             </Stage>
+            <OrbitControls
+              makeDefault
+              enablePan={false}
+              enableZoom={false}
+              autoRotate
+              autoRotateSpeed={1.1}
+              minPolarAngle={Math.PI / 3}
+              maxPolarAngle={Math.PI / 1.8}
+            />
           </Suspense>
-          <OrbitControls
-            makeDefault
-            enablePan={false}
-            enableZoom={false}
-            autoRotate
-            autoRotateSpeed={1.1}
-            minPolarAngle={Math.PI / 3}
-            maxPolarAngle={Math.PI / 1.8}
-          />
         </Canvas>
       </ModelErrorBoundary>
     </div>

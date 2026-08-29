@@ -1,30 +1,9 @@
-import { ArrowRight, Box, Layers3, ScanLine } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand-mark";
 import { ModelViewer } from "@/components/model-viewer";
 import { Button } from "@/components/ui/button";
-
-const capabilities = [
-  {
-    number: "01",
-    title: "Understand the space",
-    text: "Turn an image into a depth surface ready to compose.",
-    icon: ScanLine,
-  },
-  {
-    number: "02",
-    title: "Direct the object",
-    text: "Define scale, perspective, and vanishing point with precise spatial guidance.",
-    icon: Box,
-  },
-  {
-    number: "03",
-    title: "Build the scene",
-    text: "Integrate product and typography into one coherent visual direction.",
-    icon: Layers3,
-  },
-];
 
 export default function HomePage() {
   return (
@@ -41,43 +20,19 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <section className="grid min-h-[calc(100svh-5rem)] lg:grid-cols-[minmax(0,0.83fr)_minmax(540px,1.17fr)]">
-        <div className="flex flex-col justify-center p-6 md:p-10 lg:p-12">
+      <section className="technical-grid flex h-[calc(100svh-5rem)] flex-col items-center justify-center gap-6 bg-workspace px-6 py-10 text-center lg:grid lg:grid-cols-[minmax(0,0.83fr)_minmax(540px,1.17fr)] lg:items-stretch lg:justify-normal lg:gap-0 lg:px-0 lg:py-0 lg:text-left">
+        <div className="order-2 flex flex-col items-center lg:order-1 lg:items-start lg:justify-center lg:p-12">
           <h1 className="max-w-3xl text-balance text-[clamp(3.3rem,7vw,7.6rem)] font-medium leading-[0.84] tracking-[-0.075em]">
             Just Scale It
           </h1>
           <p className="mt-8 max-w-lg text-base leading-7 text-muted-foreground md:text-lg">
-            A visual workspace to transform backgrounds, orient products, and compose results
-            with real depth.
+            A visual workspace to transform backgrounds, orient products, and compose results with
+            real depth.
           </p>
         </div>
 
-        <div className="relative flex min-h-155 items-center justify-center p-4 md:p-10 lg:p-12">
-          <ModelViewer className="h-110 w-full max-w-4xl md:h-130" />
-        </div>
-      </section>
-
-      <section id="sistema" className="border-t px-4 py-20 md:px-8 lg:px-12 lg:py-28">
-        <div className="mb-16 grid gap-6 lg:grid-cols-2">
-          <p className="font-mono text-xs uppercase tracking-[0.18em]">One flow. Three layers.</p>
-          <h2 className="max-w-2xl text-4xl font-medium leading-tight tracking-[-0.04em] md:text-6xl">
-            Less interface. More control over the image.
-          </h2>
-        </div>
-        <div className="grid border-t lg:grid-cols-3">
-          {capabilities.map(({ number, title, text, icon: Icon }) => (
-            <article
-              key={number}
-              className="group border-b py-8 lg:border-r lg:px-8 lg:first:pl-0 lg:last:border-r-0"
-            >
-              <div className="mb-16 flex items-center justify-between font-mono text-xs text-muted-foreground">
-                <span>{number}</span>
-                <Icon className="size-5" aria-hidden="true" />
-              </div>
-              <h3 className="text-2xl font-medium tracking-tight">{title}</h3>
-              <p className="mt-3 max-w-sm leading-6 text-muted-foreground">{text}</p>
-            </article>
-          ))}
+        <div className="relative order-1 h-88 w-88 shrink-0 sm:h-104 sm:w-104 lg:order-2 lg:h-auto lg:w-auto lg:flex-1">
+          <ModelViewer className="absolute inset-0" />
         </div>
       </section>
 
